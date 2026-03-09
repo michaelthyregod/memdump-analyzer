@@ -1,0 +1,59 @@
+# known-assemblies.txt
+#
+# Controls which assemblies appear in the "Application Code Hotspots" report section.
+#
+# Syntax (one rule per line, matched case-insensitively against assembly filename without extension):
+#
+#   -Prefix   (or just Prefix)  — EXCLUDE: treat as known/trusted infrastructure, hide from hotspots
+#   +Prefix                     — INCLUDE: force visible even when a broader exclude rule would hide it
+#
+# Include (+) rules take priority over exclude (-) rules.
+#
+# Example: hide all Sitecore assemblies but surface Sitecore.SessionProvider for investigation:
+#   -Sitecore
+#   +Sitecore.SessionProvider
+#
+# Lines starting with # or // are comments. Blank lines are ignored.
+
+# ── .NET runtime / BCL ────────────────────────────────────────────────────────
+-System
+-mscorlib
+-Microsoft.CSharp
+-Microsoft.VisualBasic
+-netstandard
+-WindowsBase
+
+# ── ASP.NET / IIS ─────────────────────────────────────────────────────────────
+-Microsoft.AspNet
+-Microsoft.Owin
+-Microsoft.Web
+-System.Web
+
+# ── Azure / Application Insights ─────────────────────────────────────────────
+-Microsoft.ApplicationInsights
+-Microsoft.Azure
+-Microsoft.Extensions
+-Microsoft.Identity
+-Microsoft.NET
+
+# ── Entity Framework / ADO.NET ────────────────────────────────────────────────
+-EntityFramework
+-Microsoft.EntityFrameworkCore
+
+# ── Blueprint ─────────────────────────────────────────────────────────
+-Blueprint
+
+# ── Sitecore platform ─────────────────────────────────────────────────────────
+-Sitecore
+# To surface a specific Sitecore assembly for investigation, add a + rule below, e.g.:
++Sitecore.SessionProvider
+
+# ── Other common frameworks — add with - to suppress ─────────────────────────
+# -NHibernate
+# -AutoMapper
+# -Newtonsoft.Json
+# -log4net
+# -NLog
+# -WebActivator
+-StackExchange.Redis
+# -Pipelines.Sockets.Unofficial

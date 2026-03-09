@@ -1,0 +1,153 @@
+## ── Project-specific ─────────────────────────────────────────────────────────
+
+# Memory dump input files (large, potentially sensitive)
+mem-dumps/
+*.dmp
+*.mdmp
+
+# Generated report output
+report/
+
+## ── .NET build artifacts ──────────────────────────────────────────────────────
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# .NET publish output
+[Pp]ublish/
+publish/
+
+# NuGet packages directory and lock files
+.nuget/
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# MSBuild binary log
+*.binlog
+
+## ── Visual Studio ────────────────────────────────────────────────────────────
+
+# VS solution user options and local settings
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# VS test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResult.xml
+
+# VS code coverage
+*.coverage
+*.coveragexml
+_CodeCoverageReport/
+
+# VS profiler output
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# VS crash dumps
+*.dmp
+
+# Blend / XAML designer
+Generated_Code/
+_UpgradeReport_Files/
+Backup*/
+UpgradeLog*.htm
+UpgradeLog*.XML
+
+# VS cache and platform files
+*.VC.db
+*.VC.opendb
+ipch/
+*.opensdf
+*.sdf
+*.cachefile
+*.aps
+*.ncb
+*.opendb
+
+## ── Rider / JetBrains ────────────────────────────────────────────────────────
+
+.idea/
+*.sln.iml
+
+## ── VS Code ──────────────────────────────────────────────────────────────────
+
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+
+## ── OS generated ─────────────────────────────────────────────────────────────
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+## ── Secrets / environment ────────────────────────────────────────────────────
+
+.env
+.env.*
+!.env.example
+secrets.json
+appsettings.*.json
+!appsettings.Development.json
+
+## ── Misc tooling ─────────────────────────────────────────────────────────────
+
+# dotnet tools manifest (keep if you use local tools)
+# .config/dotnet-tools.json
+
+# StyleCop / analyzers cache
+StyleCopReport.xml
+
+# ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# FAKE build
+.fake/
+
+# BenchmarkDotNet artifacts
+BenchmarkDotNet.Artifacts/
