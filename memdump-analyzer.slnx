@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MemDumpAnalyzer.Cli/MemDumpAnalyzer.Cli.csproj" />
+    <Project Path="src/MemDumpAnalyzer.Core/MemDumpAnalyzer.Core.csproj" />
+    <Project Path="src/MemDumpAnalyzer.Reporting/MemDumpAnalyzer.Reporting.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MemDumpAnalyzer.Tests/MemDumpAnalyzer.Tests.csproj" />
+  </Folder>
+</Solution>
