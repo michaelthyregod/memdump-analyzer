@@ -46,25 +46,41 @@ public static class DiffCommand
             {
                 if (!f.Exists)
                 {
-                    AnsiConsole.MarkupLine($"[red]File not found:[/] {f.FullName}");
+                    AnsiConsole.MarkupLine($"[red]File not found:[/] {Markup.Escape(f.FullName)}");
+                    Environment.ExitCode = 1;
                     return;
                 }
             }
 
             outputDir.Create();
-            AnsiConsole.MarkupLine($"[bold blue]memdump-analyzer diff[/] — [yellow]{baselineFile.Name}[/] vs [yellow]{problemFile.Name}[/]");
+            AnsiConsole.MarkupLine($"[bold blue]memdump-analyzer diff[/] — [yellow]{Markup.Escape(baselineFile.Name)}[/] vs [yellow]{Markup.Escape(problemFile.Name)}[/]");
 
             MemDumpAnalyzer.Core.Models.AnalysisResult? baselineResult = null;
             MemDumpAnalyzer.Core.Models.AnalysisResult? problemResult = null;
+            var currentDump = baselineFile.Name;
 
-            await AnsiConsole.Progress().StartAsync(async ctx =>
+            try
             {
-                var t1 = ctx.AddTask("[green]Analyzing baseline...[/]");
-                var t2 = ctx.AddTask("[green]Analyzing problem dump...[/]");
+                await AnsiConsole.Progress().StartAsync(async ctx =>
+                {
+                    var t1 = ctx.AddTask("[green]Analyzing baseline...[/]");
+                    var t2 = ctx.AddTask("[green]Analyzing problem dump...[/]");
 
-                await Task.Run(() => { baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, topN); t1.Value = 100; }, cancellationToken);
-                await Task.Run(() => { problemResult = AnalysisEngine.Analyze(problemFile.FullName, topN); t2.Value = 100; }, cancellationToken);
-            });
+                    await Task.Run(() => { baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, topN); t1.Value = 100; }, cancellationToken);
+                    currentDump = problemFile.Name;
+                    await Task.Run(() => { problemResult = AnalysisEngine.Analyze(problemFile.FullName, topN); t2.Value = 100; }, cancellationToken);
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ErrorReporting.PrintAnalysisError(ex, currentDump);
+                Environment.ExitCode = 1;
+                return;
+            }
 
             if (baselineResult == null || problemResult == null) return;
 
@@ -93,20 +109,20 @@ public static class DiffCommand
                                     WriteIndented = true,
                                     Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
                                 }));
-                        AnsiConsole.MarkupLine($"  [green]✓[/] JSON diff → {jsonPath}");
+                        AnsiConsole.MarkupLine($"  [green]✓[/] JSON diff → {Markup.Escape(jsonPath)}");
                         break;
 
                     case "html":
                         var htmlPath = baseName + ".html";
                         await WriteDiffHtml(diff, baselineResult, problemResult, htmlPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] HTML diff → {htmlPath}");
+                        AnsiConsole.MarkupLine($"  [green]✓[/] HTML diff → {Markup.Escape(htmlPath)}");
                         break;
 
                     case "md":
                     case "markdown":
                         var mdPath = baseName + ".md";
                         await WriteDiffMarkdown(diff, baselineResult, problemResult, mdPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] Markdown diff → {mdPath}");
+                        AnsiConsole.MarkupLine($"  [green]✓[/] Markdown diff → {Markup.Escape(mdPath)}");
                         break;
                 }
             }

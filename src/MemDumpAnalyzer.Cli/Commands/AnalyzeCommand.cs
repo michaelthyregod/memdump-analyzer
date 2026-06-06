@@ -50,30 +50,44 @@ public static class AnalyzeCommand
 
             if (!dumpFile.Exists)
             {
-                AnsiConsole.MarkupLine($"[red]Dump file not found:[/] {dumpFile.FullName}");
+                AnsiConsole.MarkupLine($"[red]Dump file not found:[/] {Markup.Escape(dumpFile.FullName)}");
+                Environment.ExitCode = 1;
                 return;
             }
 
             outputDir.Create();
 
-            AnsiConsole.MarkupLine($"[bold blue]memdump-analyzer[/] — analyzing [yellow]{dumpFile.Name}[/]");
+            AnsiConsole.MarkupLine($"[bold blue]memdump-analyzer[/] — analyzing [yellow]{Markup.Escape(dumpFile.Name)}[/]");
             if (knownFile != null)
-                AnsiConsole.MarkupLine($"  [grey]Assembly filter:[/] {Path.GetFileName(knownFile)}");
+                AnsiConsole.MarkupLine($"  [grey]Assembly filter:[/] {Markup.Escape(Path.GetFileName(knownFile))}");
 
             MemDumpAnalyzer.Core.Models.AnalysisResult? result = null;
 
-            await AnsiConsole.Progress()
-                .StartAsync(async ctx =>
-                {
-                    var task = ctx.AddTask("[green]Loading and analyzing dump...[/]", maxValue: 100);
-                    task.Value = 5;
-
-                    await Task.Run(() =>
+            try
+            {
+                await AnsiConsole.Progress()
+                    .StartAsync(async ctx =>
                     {
-                        result = AnalysisEngine.Analyze(dumpFile.FullName, topN, knownFile);
-                        task.Value = 100;
-                    }, cancellationToken);
-                });
+                        var task = ctx.AddTask("[green]Loading and analyzing dump...[/]", maxValue: 100);
+                        task.Value = 5;
+
+                        await Task.Run(() =>
+                        {
+                            result = AnalysisEngine.Analyze(dumpFile.FullName, topN, knownFile);
+                            task.Value = 100;
+                        }, cancellationToken);
+                    });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ErrorReporting.PrintAnalysisError(ex, dumpFile.Name);
+                Environment.ExitCode = 1;
+                return;
+            }
 
             if (result == null) return;
 
@@ -86,26 +100,26 @@ public static class AnalyzeCommand
                     case "json":
                         var jsonPath = baseName + ".json";
                         await JsonReporter.WriteAsync(result, jsonPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] JSON → {jsonPath}");
+                        AnsiConsole.MarkupLine($"  [green]✓[/] JSON → {Markup.Escape(jsonPath)}");
                         break;
                     case "md":
                     case "markdown":
                         var mdPath = baseName + ".md";
                         await MarkdownReporter.WriteAsync(result, mdPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] Markdown → {mdPath}");
+                        AnsiConsole.MarkupLine($"  [green]✓[/] Markdown → {Markup.Escape(mdPath)}");
                         break;
                     case "html":
                         var htmlPath = baseName + ".html";
                         await HtmlReporter.WriteAsync(result, htmlPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] HTML → {htmlPath}");
+                        AnsiConsole.MarkupLine($"  [green]✓[/] HTML → {Markup.Escape(htmlPath)}");
                         break;
                     case "pdf":
                         var pdfPath = baseName + ".pdf";
                         PdfReporter.Write(result, pdfPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] PDF → {pdfPath}");
+                        AnsiConsole.MarkupLine($"  [green]✓[/] PDF → {Markup.Escape(pdfPath)}");
                         break;
                     default:
-                        AnsiConsole.MarkupLine($"  [yellow]Unknown format:[/] {fmt}");
+                        AnsiConsole.MarkupLine($"  [yellow]Unknown format:[/] {Markup.Escape(fmt)}");
                         break;
                 }
             }
@@ -133,7 +147,8 @@ public static class AnalyzeCommand
                 MemDumpAnalyzer.Core.Models.Severity.Warning => "[yellow]WARNING[/]",
                 _ => "[blue]INFO[/]"
             };
-            table.AddRow(f.Id, severity, f.Summary.Length > 70 ? f.Summary[..67] + "..." : f.Summary);
+            string summary = f.Summary.Length > 70 ? f.Summary[..67] + "..." : f.Summary;
+            table.AddRow(Markup.Escape(f.Id), severity, Markup.Escape(summary));
         }
 
         if (r.Findings.Count == 0)
