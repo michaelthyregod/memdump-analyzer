@@ -16,8 +16,10 @@ public static class FindingEngine
         IReadOnlyList<HeapTypeStats> heapTypes,
         GcStats gc,
         IReadOnlyList<StringDuplication> strings,
-        IReadOnlyList<LeakSuspect> leaks)
+        IReadOnlyList<LeakSuspect> leaks,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var findings = new List<Finding>();
 
         // ── Thread findings ──────────────────────────────────────────────────

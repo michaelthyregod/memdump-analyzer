@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Scriban;
 using Scriban.Runtime;
 using MemDumpAnalyzer.Core.Models;
@@ -8,18 +9,22 @@ public static class HtmlReporter
 {
     private static readonly string TemplateSource = EmbeddedTemplate.Html;
 
+    // Scriban reads the model graph and the registered delegates via reflection at render
+    // time. The delegate methods are statically rooted by the Func<> constructions below,
+    // and the model types (MemDumpAnalyzer.Core) are preserved via ILLink.Descriptors.xml.
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Delegates reference statically-rooted methods; model assembly is preserved by ILLink.Descriptors.xml.")]
     public static string Render(AnalysisResult result)
     {
         var template = Template.Parse(TemplateSource);
         if (template.HasErrors)
             throw new InvalidOperationException($"Template parse error: {string.Join("; ", template.Messages)}");
 
-        var scriptObj = new ScriptObject();
-        scriptObj.Import(new
+        var scriptObj = new ScriptObject
         {
-            r = result,
-            blocked_thread_count = result.Threads.Count(t => t.BlockingReason != null)
-        });
+            ["r"] = result,
+            ["blocked_thread_count"] = result.Threads.Count(t => t.BlockingReason != null)
+        };
 
         scriptObj.Import("format_bytes", new Func<long, string>(FormatBytes));
         scriptObj.Import("severity_class", new Func<Severity, string>(s => s switch
@@ -36,8 +41,8 @@ public static class HtmlReporter
         return template.Render(context);
     }
 
-    public static async Task WriteAsync(AnalysisResult result, string outputPath)
-        => await File.WriteAllTextAsync(outputPath, Render(result));
+    public static async Task WriteAsync(AnalysisResult result, string outputPath, CancellationToken cancellationToken = default)
+        => await File.WriteAllTextAsync(outputPath, Render(result), cancellationToken);
 
     internal static string FormatBytes(long bytes)
     {

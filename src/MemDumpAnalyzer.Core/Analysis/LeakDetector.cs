@@ -10,11 +10,12 @@ public static class LeakDetector
 
     public static IReadOnlyList<LeakSuspect> Analyze(
         ClrRuntime runtime,
-        IReadOnlyList<HeapTypeStats> heapStats)
+        IReadOnlyList<HeapTypeStats> heapStats,
+        CancellationToken cancellationToken = default)
     {
         var heap = runtime.Heap;
         if (!heap.CanWalkHeap)
-            return Array.Empty<LeakSuspect>();
+            return [];
 
         // Focus on large types
         var suspects = heapStats
@@ -23,7 +24,7 @@ public static class LeakDetector
             .ToList();
 
         if (suspects.Count == 0)
-            return Array.Empty<LeakSuspect>();
+            return [];
 
         var suspectTypeNames = suspects.Select(s => s.TypeName).ToHashSet();
 
@@ -31,12 +32,13 @@ public static class LeakDetector
         var sampleAddresses = new Dictionary<string, List<ulong>>();
         foreach (var obj in heap.EnumerateObjects())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (obj.IsNull || !obj.IsValid || obj.Type == null) continue;
             var name = obj.Type.Name ?? string.Empty;
             if (!suspectTypeNames.Contains(name)) continue;
 
             if (!sampleAddresses.TryGetValue(name, out var list))
-                sampleAddresses[name] = list = new List<ulong>();
+                sampleAddresses[name] = list = [];
 
             if (list.Count < 3)
                 list.Add(obj.Address);
@@ -48,10 +50,15 @@ public static class LeakDetector
         {
             foreach (var root in heap.EnumerateRoots())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var addr = root.Object.Address;
                 if (!rootsByObject.ContainsKey(addr))
                     rootsByObject[addr] = $"{root.RootKind}: {root.Address:x16}";
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {

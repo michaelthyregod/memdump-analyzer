@@ -1,18 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="QuestPDF" Version="2026.5.0" />
-    <PackageReference Include="Scriban" Version="7.2.3" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\MemDumpAnalyzer.Core\MemDumpAnalyzer.Core.csproj" />
-  </ItemGroup>
-
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsAotCompatible>True</IsAotCompatible>
+		<EnableAotAnalyzer>true</EnableAotAnalyzer>
+		<EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+	</PropertyGroup>
+	<ItemGroup>
+		<!-- Tells the trimmer to keep the Core model graph, which Scriban reads via reflection -->
+		<EmbeddedResource Include="ILLink.Descriptors.xml">
+			<LogicalName>ILLink.Descriptors.xml</LogicalName>
+		</EmbeddedResource>
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="QuestPDF" Version="2026.5.0" />
+		<PackageReference Include="Scriban" Version="7.2.3" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\MemDumpAnalyzer.Core\MemDumpAnalyzer.Core.csproj" />
+	</ItemGroup>
 </Project>

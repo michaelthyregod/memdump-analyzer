@@ -8,17 +8,19 @@ public static class StringAnalyzer
     private const int TopN = 50;
     private const long MinWastedBytes = 1024 * 10; // 10 KB
 
-    public static IReadOnlyList<StringDuplication> Analyze(ClrRuntime runtime)
+    public static IReadOnlyList<StringDuplication> Analyze(
+        ClrRuntime runtime, CancellationToken cancellationToken = default)
     {
         var heap = runtime.Heap;
         if (!heap.CanWalkHeap)
-            return Array.Empty<StringDuplication>();
+            return [];
 
         var stringType = heap.StringType;
         var stringCounts = new Dictionary<string, (long Count, long SizeEach)>();
 
         foreach (var obj in heap.EnumerateObjects())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (obj.IsNull || !obj.IsValid || obj.Type == null) continue;
             if (obj.Type != stringType) continue;
 

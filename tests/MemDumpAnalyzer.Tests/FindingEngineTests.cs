@@ -1,13 +1,12 @@
 using MemDumpAnalyzer.Core.Heuristics;
 using MemDumpAnalyzer.Core.Models;
-using Xunit;
 
 namespace MemDumpAnalyzer.Tests;
 
 public class FindingEngineTests
 {
-    private static GcStats EmptyGc() => new GcStats(0, 0, 0, 0, 0, 0, 0.0, Array.Empty<GcSegmentInfo>());
-    private static IReadOnlyList<ThreadGroup> NoGroups() => Array.Empty<ThreadGroup>();
+    private static GcStats EmptyGc() => new(0, 0, 0, 0, 0, 0, 0.0, []);
+    private static IReadOnlyList<ThreadGroup> NoGroups() => [];
 
     private static (IReadOnlyList<Finding> Findings, int Score) Eval(
         IReadOnlyList<ThreadInfo>? threads = null,
@@ -17,17 +16,17 @@ public class FindingEngineTests
         IReadOnlyList<StringDuplication>? strings = null,
         IReadOnlyList<LeakSuspect>? leaks = null) =>
         FindingEngine.Evaluate(
-            threads ?? Array.Empty<ThreadInfo>(),
+            threads ?? [],
             groups ?? NoGroups(),
-            heap ?? Array.Empty<HeapTypeStats>(),
+            heap ?? [],
             gc ?? EmptyGc(),
-            strings ?? Array.Empty<StringDuplication>(),
-            leaks ?? Array.Empty<LeakSuspect>());
+            strings ?? [],
+            leaks ?? []);
 
     [Fact]
     public void NoFindings_WhenHeapIsSmall()
     {
-        var threads = new[] { new ThreadInfo(1, 1, "Alive", null, Array.Empty<string>(), false, false, null) };
+        var threads = new[] { new ThreadInfo(1, 1, "Alive", null, [], false, false, null) };
         var heap = new[] { new HeapTypeStats("System.String", 10, 1024, 1024, 0) };
 
         var (findings, score) = Eval(threads: threads, heap: heap);
@@ -40,7 +39,7 @@ public class FindingEngineTests
     public void ThreadPoolExhaustion_WhenHighThreadCount()
     {
         var threads = Enumerable.Range(1, 250)
-            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, Array.Empty<string>(), false, false, null))
+            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, [], false, false, null))
             .ToList();
 
         var (findings, score) = Eval(threads: threads);
@@ -58,7 +57,7 @@ public class FindingEngineTests
             .ToList();
         var groups = new[]
         {
-            new ThreadGroup(250, 100.0, "outbound HTTP I/O", frames, new uint[] { 1, 2, 3 })
+            new ThreadGroup(250, 100.0, "outbound HTTP I/O", frames, [1, 2, 3])
         };
 
         var (findings, _) = Eval(threads: threads, groups: groups);
@@ -73,8 +72,8 @@ public class FindingEngineTests
     {
         var threads = new[]
         {
-            new ThreadInfo(1, 1, "Blocked", null, Array.Empty<string>(), false, false, "Monitor on 0x1234"),
-            new ThreadInfo(2, 2, "Blocked", null, Array.Empty<string>(), false, false, "Monitor on 0x5678"),
+            new ThreadInfo(1, 1, "Blocked", null, [], false, false, "Monitor on 0x1234"),
+            new ThreadInfo(2, 2, "Blocked", null, [], false, false, "Monitor on 0x5678"),
         };
 
         var (findings, _) = Eval(threads: threads);
@@ -104,7 +103,7 @@ public class FindingEngineTests
     public void LargeObjectHeapGrowth_WhenLohExceedsThreshold()
     {
         var gc = new GcStats(200 * 1024 * 1024, 10 * 1024 * 1024, 10 * 1024 * 1024,
-            90 * 1024 * 1024, 90 * 1024 * 1024, 0, 5.0, Array.Empty<GcSegmentInfo>());
+            90 * 1024 * 1024, 90 * 1024 * 1024, 0, 5.0, []);
 
         var (findings, _) = Eval(gc: gc);
 
@@ -114,7 +113,7 @@ public class FindingEngineTests
     [Fact]
     public void LohFragmentationHigh_WhenFragOver30Percent()
     {
-        var (findings, _) = Eval(gc: new GcStats(0, 0, 0, 0, 0, 0, 45.0, Array.Empty<GcSegmentInfo>()));
+        var (findings, _) = Eval(gc: new GcStats(0, 0, 0, 0, 0, 0, 45.0, []));
         Assert.Contains(findings, f => f.Id == "LohFragmentationHigh");
     }
 
@@ -142,12 +141,11 @@ public class FindingEngineTests
     public void HealthScore_DecreasesWithEachFinding()
     {
         var threads = Enumerable.Range(1, 250)
-            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, Array.Empty<string>(), false, false, null))
-            .Concat(new[]
-            {
-                new ThreadInfo(300, 300, "Blocked", null, Array.Empty<string>(), false, false, "lock"),
-                new ThreadInfo(301, 301, "Blocked", null, Array.Empty<string>(), false, false, "lock"),
-            }).ToList();
+            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, [], false, false, null))
+            .Concat([
+                new ThreadInfo(300, 300, "Blocked", null, [], false, false, "lock"),
+                new ThreadInfo(301, 301, "Blocked", null, [], false, false, "lock")
+            ]).ToList();
 
         var (_, score) = Eval(threads: threads);
 
@@ -159,9 +157,9 @@ public class FindingEngineTests
     public void Findings_OrderedBySeverityDescending()
     {
         var threads = Enumerable.Range(1, 250)
-            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, Array.Empty<string>(), false, false, null))
+            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, [], false, false, null))
             .ToList();
-        var gc = new GcStats(0, 0, 0, 0, 0, 0, 45.0, Array.Empty<GcSegmentInfo>());
+        var gc = new GcStats(0, 0, 0, 0, 0, 0, 45.0, []);
 
         var (findings, _) = Eval(threads: threads, gc: gc);
 

@@ -1,24 +1,19 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using MemDumpAnalyzer.Core.Models;
 
 namespace MemDumpAnalyzer.Reporting;
 
 public static class JsonReporter
 {
-    private static readonly JsonSerializerOptions Options = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
     public static string Render(AnalysisResult result)
-        => JsonSerializer.Serialize(result, Options);
+        => JsonSerializer.Serialize(result, ReportJsonContext.Default.AnalysisResult);
 
-    public static async Task WriteAsync(AnalysisResult result, string outputPath)
-    {
-        var json = Render(result);
-        await File.WriteAllTextAsync(outputPath, json);
-    }
+    public static string Render(DiffResult diff)
+        => JsonSerializer.Serialize(diff, ReportJsonContext.Default.DiffResult);
+
+    public static async Task WriteAsync(AnalysisResult result, string outputPath, CancellationToken cancellationToken = default)
+        => await File.WriteAllTextAsync(outputPath, Render(result), cancellationToken);
+
+    public static async Task WriteAsync(DiffResult diff, string outputPath, CancellationToken cancellationToken = default)
+        => await File.WriteAllTextAsync(outputPath, Render(diff), cancellationToken);
 }

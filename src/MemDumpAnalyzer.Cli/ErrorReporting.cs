@@ -38,8 +38,9 @@ internal static class ErrorReporting
         }
         else
         {
-            // Unexpected failure — keep a compact stack trace for diagnosis.
-            AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+            // Unexpected failure — keep the stack trace for diagnosis.
+            // (AnsiConsole.WriteException is not AOT compatible, so print it plainly.)
+            AnsiConsole.MarkupLine($"[grey]{Markup.Escape(ex.ToString())}[/]");
         }
 
         AnsiConsole.WriteLine();

@@ -30,8 +30,10 @@ public static class DumpLoader
         }
     }
 
-    public static LoadedDump Load(string dumpPath)
+    public static LoadedDump Load(string dumpPath, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!File.Exists(dumpPath))
             throw new FileNotFoundException($"Dump file not found: {dumpPath}");
 
@@ -45,6 +47,18 @@ public static class DumpLoader
 
         var clrInfo = dataTarget.ClrVersions[0];
         ClrRuntime runtime;
+
+        // Checked outside the try below so cancellation is not rewrapped as a runtime-creation failure
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch
+        {
+            dataTarget.Dispose();
+            throw;
+        }
+
         try
         {
             runtime = clrInfo.CreateRuntime();

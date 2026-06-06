@@ -1,4 +1,3 @@
-using Microsoft.Diagnostics.Runtime;
 using MemDumpAnalyzer.Core.Models;
 
 namespace MemDumpAnalyzer.Core.Analysis;
@@ -11,8 +10,10 @@ public static class DiffAnalyzer
         GcStats baselineGc,
         GcStats problemGc,
         int baselineThreadCount,
-        int problemThreadCount)
+        int problemThreadCount,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var baselineDict = baseline.ToDictionary(t => t.TypeName);
         var problemDict = problem.ToDictionary(t => t.TypeName);
 

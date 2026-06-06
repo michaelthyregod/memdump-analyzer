@@ -65,66 +65,74 @@ public static class AnalyzeCommand
 
             try
             {
-                await AnsiConsole.Progress()
-                    .StartAsync(async ctx =>
-                    {
-                        var task = ctx.AddTask("[green]Loading and analyzing dump...[/]", maxValue: 100);
-                        task.Value = 5;
-
-                        await Task.Run(() =>
+                try
+                {
+                    await AnsiConsole.Progress()
+                        .StartAsync(async ctx =>
                         {
-                            result = AnalysisEngine.Analyze(dumpFile.FullName, topN, knownFile);
-                            task.Value = 100;
-                        }, cancellationToken);
-                    });
+                            var task = ctx.AddTask("[green]Loading and analyzing dump...[/]", maxValue: 100);
+                            task.Value = 5;
+
+                            await Task.Run(() =>
+                            {
+                                result = AnalysisEngine.Analyze(dumpFile.FullName, topN, knownFile, cancellationToken);
+                                task.Value = 100;
+                            }, cancellationToken);
+                        });
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    ErrorReporting.PrintAnalysisError(ex, dumpFile.Name);
+                    Environment.ExitCode = 1;
+                    return;
+                }
+
+                if (result == null) return;
+
+                var baseName = Path.Combine(outputDir.FullName, Path.GetFileNameWithoutExtension(dumpFile.Name));
+
+                foreach (var fmt in formats)
+                {
+                    switch (fmt.ToLowerInvariant())
+                    {
+                        case "json":
+                            var jsonPath = baseName + ".json";
+                            await JsonReporter.WriteAsync(result, jsonPath, cancellationToken);
+                            AnsiConsole.MarkupLine($"  [green]✓[/] JSON → {Markup.Escape(jsonPath)}");
+                            break;
+                        case "md":
+                        case "markdown":
+                            var mdPath = baseName + ".md";
+                            await MarkdownReporter.WriteAsync(result, mdPath, cancellationToken);
+                            AnsiConsole.MarkupLine($"  [green]✓[/] Markdown → {Markup.Escape(mdPath)}");
+                            break;
+                        case "html":
+                            var htmlPath = baseName + ".html";
+                            await HtmlReporter.WriteAsync(result, htmlPath, cancellationToken);
+                            AnsiConsole.MarkupLine($"  [green]✓[/] HTML → {Markup.Escape(htmlPath)}");
+                            break;
+                        case "pdf":
+                            var pdfPath = baseName + ".pdf";
+                            PdfReporter.Write(result, pdfPath, cancellationToken);
+                            AnsiConsole.MarkupLine($"  [green]✓[/] PDF → {Markup.Escape(pdfPath)}");
+                            break;
+                        default:
+                            AnsiConsole.MarkupLine($"  [yellow]Unknown format:[/] {Markup.Escape(fmt)}");
+                            break;
+                    }
+                }
+
+                PrintSummary(result);
             }
             catch (OperationCanceledException)
             {
-                throw;
+                AnsiConsole.MarkupLine("\n[yellow]Canceled.[/]");
+                Environment.ExitCode = 130; // conventional exit code for interrupted (Ctrl+C)
             }
-            catch (Exception ex)
-            {
-                ErrorReporting.PrintAnalysisError(ex, dumpFile.Name);
-                Environment.ExitCode = 1;
-                return;
-            }
-
-            if (result == null) return;
-
-            var baseName = Path.Combine(outputDir.FullName, Path.GetFileNameWithoutExtension(dumpFile.Name));
-
-            foreach (var fmt in formats)
-            {
-                switch (fmt.ToLowerInvariant())
-                {
-                    case "json":
-                        var jsonPath = baseName + ".json";
-                        await JsonReporter.WriteAsync(result, jsonPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] JSON → {Markup.Escape(jsonPath)}");
-                        break;
-                    case "md":
-                    case "markdown":
-                        var mdPath = baseName + ".md";
-                        await MarkdownReporter.WriteAsync(result, mdPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] Markdown → {Markup.Escape(mdPath)}");
-                        break;
-                    case "html":
-                        var htmlPath = baseName + ".html";
-                        await HtmlReporter.WriteAsync(result, htmlPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] HTML → {Markup.Escape(htmlPath)}");
-                        break;
-                    case "pdf":
-                        var pdfPath = baseName + ".pdf";
-                        PdfReporter.Write(result, pdfPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] PDF → {Markup.Escape(pdfPath)}");
-                        break;
-                    default:
-                        AnsiConsole.MarkupLine($"  [yellow]Unknown format:[/] {Markup.Escape(fmt)}");
-                        break;
-                }
-            }
-
-            PrintSummary(result);
         });
 
         return cmd;

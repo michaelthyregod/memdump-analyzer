@@ -1,0 +1,6 @@
+<!-- Scriban accesses the report model graph via reflection at render time, which the
+     trimmer cannot see. Preserve the whole Core assembly (it is small and consists
+     almost entirely of model records used by the HTML template). -->
+<linker>
+  <assembly fullname="MemDumpAnalyzer.Core" preserve="all" />
+</linker>
