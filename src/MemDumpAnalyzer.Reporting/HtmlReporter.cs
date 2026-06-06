@@ -35,7 +35,9 @@ public static class HtmlReporter
         }));
         scriptObj.Import("severity_label", new Func<Severity, string>(s => s.ToString().ToUpper()));
 
-        var context = new TemplateContext { LoopLimit = 0 }; // real dumps can have thousands of objects/threads
+        // Real dumps can have thousands of objects/threads: disable the loop-iteration cap and
+        // the 1 MiB output cap (LimitToString silently truncates the rendered HTML with "...")
+        var context = new TemplateContext { LoopLimit = 0, LimitToString = 0 };
         context.PushGlobal(scriptObj);
 
         return template.Render(context);

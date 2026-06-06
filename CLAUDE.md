@@ -146,7 +146,7 @@ These properties changed from v2 to v3 — use these:
 - Assignment: `{{ x = value }}` — NOT `{{ assign x = value }}`
 - Register `Func<T,TResult>` delegates via `scriptObj.Import("name", delegate)` (not via anonymous object)
 - Default `MemberRenamer` converts PascalCase → snake_case automatically; do NOT override it
-- `TemplateContext { LoopLimit = 0 }` required for large dumps
+- `TemplateContext { LoopLimit = 0, LimitToString = 0 }` required for large dumps — `LimitToString` defaults to 1 MiB and silently truncates the rendered output with `...`
 - `array.limit N` in template loops for display caps (threads table: 300, heap types: 500, segments: 200)
 
 ## System.CommandLine 3.0-preview API Notes

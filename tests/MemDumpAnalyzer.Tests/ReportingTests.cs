@@ -108,6 +108,31 @@ public class ReportingTests
     }
 
     [Fact]
+    public void HtmlReporter_DoesNotTruncateLargeReports()
+    {
+        // Scriban's LimitToString defaults to 1 MiB and silently truncates the rendered output
+        // with "..." — a single finding's TechnicalDetails (full thread stacks) can exceed that
+        // alone, cutting off every later report section.
+        var hugeDetails = Enumerable.Range(0, 20_000)
+            .Select(i => $"Frame_{i}: {new string('x', 80)}  [TestApp]")
+            .ToList();
+        var result = MakeSampleResult() with
+        {
+            Findings =
+            [
+                new Finding("ThreadPoolExhaustion", Severity.Critical, "Many threads", "Explanation.",
+                    "Evidence", "Recommendation", hugeDetails)
+            ]
+        };
+
+        var html = HtmlReporter.Render(result);
+
+        Assert.True(html.Length > 1_500_000, $"Report unexpectedly small: {html.Length:N0} chars");
+        Assert.Contains("MyApp.DataModel", html);   // section after Findings still rendered
+        Assert.EndsWith("</html>", html.TrimEnd()); // document is complete, not cut off
+    }
+
+    [Fact]
     public void JsonReporter_IncludesAllTopLevelFields()
     {
         var result = MakeSampleResult();
