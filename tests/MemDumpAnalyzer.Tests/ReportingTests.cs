@@ -1,29 +1,29 @@
 using MemDumpAnalyzer.Core.Models;
 using MemDumpAnalyzer.Reporting;
 using System.Text.Json;
-using Xunit;
 
 namespace MemDumpAnalyzer.Tests;
 
 public class ReportingTests
 {
-    private static AnalysisResult MakeSampleResult() => new AnalysisResult(
+    private static AnalysisResult MakeSampleResult() => new(
         DumpPath: @"C:\dumps\test.dmp",
         CaptureTime: new DateTime(2026, 3, 9, 10, 0, 0, DateTimeKind.Utc),
         DumpFileSizeBytes: 512 * 1024 * 1024,
         ClrVersion: "4.8.4300.0",
         AppDomainName: "TestApp.exe",
         OsVersion: "Windows 10",
-        Threads: new[]
-        {
-            new ThreadInfo(1234, 1, "Alive", null, new[] { "TestApp.Program.Main()  [TestApp]", "mscorlib.Thread.Start()  [mscorlib]" }, false, false, null)
-        },
-        ThreadGroups: Array.Empty<ThreadGroup>(),
-        HeapTypes: new[]
-        {
+        Threads:
+        [
+            new ThreadInfo(1234, 1, "Alive", null, ["TestApp.Program.Main()  [TestApp]", "mscorlib.Thread.Start()  [mscorlib]"
+            ], false, false, null)
+        ],
+        ThreadGroups: [],
+        HeapTypes:
+        [
             new HeapTypeStats("System.String", 50_000, 10 * 1024 * 1024, 10 * 1024 * 1024, 0),
-            new HeapTypeStats("MyApp.DataModel", 1_000, 5 * 1024 * 1024, 5 * 1024 * 1024, 2),
-        },
+            new HeapTypeStats("MyApp.DataModel", 1_000, 5 * 1024 * 1024, 5 * 1024 * 1024, 2)
+        ],
         GcStats: new GcStats(
             TotalHeapBytes: 15 * 1024 * 1024,
             Gen0Bytes: 1 * 1024 * 1024,
@@ -32,21 +32,21 @@ public class ReportingTests
             LohBytes: 2 * 1024 * 1024,
             PohBytes: 0,
             LohFragmentationPercent: 5.0,
-            Segments: new[]
-            {
+            Segments:
+            [
                 new GcSegmentInfo(2, "Gen2", 10 * 1024 * 1024, 12 * 1024 * 1024, 0.83)
-            }),
-        DuplicateStrings: new[]
-        {
+            ]),
+        DuplicateStrings:
+        [
             new StringDuplication("conn-string-value", 500, 5 * 1024 * 1024)
-        },
-        LeakSuspects: Array.Empty<LeakSuspect>(),
-        ApplicationHotspots: Array.Empty<AssemblyHotspot>(),
-        KnownAssemblyFilters: Array.Empty<string>(),
-        Findings: new[]
-        {
+        ],
+        LeakSuspects: [],
+        ApplicationHotspots: [],
+        KnownAssemblyFilters: [],
+        Findings:
+        [
             new Finding("LargeObjectHeapGrowth", Severity.Warning, "LOH is large", "The LOH grew.", "LOH: 2MB", "Use ArrayPool.")
-        },
+        ],
         HealthScore: 85
     );
 

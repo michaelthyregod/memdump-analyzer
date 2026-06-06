@@ -6,23 +6,27 @@ namespace MemDumpAnalyzer.Core;
 
 public static class AnalysisEngine
 {
-    public static AnalysisResult Analyze(string dumpPath, int topN = 100, string? knownAssembliesPath = null)
+    public static AnalysisResult Analyze(
+        string dumpPath,
+        int topN = 100,
+        string? knownAssembliesPath = null,
+        CancellationToken cancellationToken = default)
     {
-        using var loaded = DumpLoader.Load(dumpPath);
+        using var loaded = DumpLoader.Load(dumpPath, cancellationToken);
         var runtime = loaded.Runtime;
 
-        var threadAnalysis  = ThreadAnalyzer.Analyze(runtime);
-        var heapTypes       = HeapAnalyzer.Analyze(runtime, topN);
-        var gc              = GcAnalyzer.Analyze(runtime);
-        var strings         = StringAnalyzer.Analyze(runtime);
-        var leaks           = LeakDetector.Analyze(runtime, heapTypes);
+        var threadAnalysis  = ThreadAnalyzer.Analyze(runtime, cancellationToken);
+        var heapTypes       = HeapAnalyzer.Analyze(runtime, topN, cancellationToken);
+        var gc              = GcAnalyzer.Analyze(runtime, cancellationToken);
+        var strings         = StringAnalyzer.Analyze(runtime, cancellationToken);
+        var leaks           = LeakDetector.Analyze(runtime, heapTypes, cancellationToken);
 
         var knownPrefixes   = ApplicationHotspotAnalyzer.LoadFilter(knownAssembliesPath);
-        var hotspots        = ApplicationHotspotAnalyzer.Analyze(threadAnalysis.Threads, knownPrefixes);
+        var hotspots        = ApplicationHotspotAnalyzer.Analyze(threadAnalysis.Threads, knownPrefixes, cancellationToken);
 
         var (findings, score) = FindingEngine.Evaluate(
             threadAnalysis.Threads, threadAnalysis.Groups,
-            heapTypes, gc, strings, leaks);
+            heapTypes, gc, strings, leaks, cancellationToken);
 
         var dumpInfo = new FileInfo(dumpPath);
 

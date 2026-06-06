@@ -11,12 +11,14 @@ public static class ThreadAnalyzer
         IReadOnlyList<ThreadInfo> Threads,
         IReadOnlyList<ThreadGroup> Groups);
 
-    public static ThreadAnalysis Analyze(ClrRuntime runtime)
+    public static ThreadAnalysis Analyze(ClrRuntime runtime, CancellationToken cancellationToken = default)
     {
         var threads = new List<ThreadInfo>();
 
         foreach (var thread in runtime.Threads)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var frames = thread.EnumerateStackTrace()
                 .Select(FormatFrame)
                 .ToList();
@@ -133,7 +135,7 @@ public static class ThreadAnalyzer
     private static IReadOnlyList<ThreadGroup> BuildGroups(IReadOnlyList<ThreadInfo> threads)
     {
         int total = threads.Count;
-        if (total == 0) return Array.Empty<ThreadGroup>();
+        if (total == 0) return [];
 
         // Fingerprint = top N non-runtime frames joined; empty string = no managed frames
         var bySignature = threads
@@ -146,7 +148,7 @@ public static class ThreadAnalyzer
         {
             bool hasNoManagedFrames = g.Key == string.Empty;
             IReadOnlyList<string> representative = hasNoManagedFrames
-                ? new[] { "(no managed stack — thread is idle or executing native/unmanaged code)" }
+                ? ["(no managed stack — thread is idle or executing native/unmanaged code)"]
                 : g.First().StackFrames;
 
             var sampleIds = g.Take(5).Select(t => t.OsThreadId).ToList();

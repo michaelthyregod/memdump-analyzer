@@ -17,10 +17,11 @@ public static class ApplicationHotspotAnalyzer
     /// </summary>
     public static IReadOnlyList<AssemblyHotspot> Analyze(
         IReadOnlyList<ThreadInfo> threads,
-        IReadOnlyList<string> filterLines)
+        IReadOnlyList<string> filterLines,
+        CancellationToken cancellationToken = default)
     {
         if (filterLines.Count == 0 || threads.Count == 0)
-            return Array.Empty<AssemblyHotspot>();
+            return [];
 
         // Parse into include (+) and exclude (-) prefix lists
         var includes = new List<string>();
@@ -39,6 +40,7 @@ public static class ApplicationHotspotAnalyzer
 
         foreach (var thread in threads)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             bool blocked = thread.BlockingReason != null;
             // Track which assemblies and methods we've already counted for this thread
             var seenAssemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -92,7 +94,7 @@ public static class ApplicationHotspotAnalyzer
     public static IReadOnlyList<string> LoadFilter(string? filePath)
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-            return Array.Empty<string>();
+            return [];
 
         return File.ReadAllLines(filePath)
             .Select(l => l.Trim())
@@ -129,7 +131,7 @@ public static class ApplicationHotspotAnalyzer
 
     private static HashSet<uint> GetOrAdd(Dictionary<string, HashSet<uint>> dict, string key)
     {
-        if (!dict.TryGetValue(key, out var v)) dict[key] = v = new HashSet<uint>();
+        if (!dict.TryGetValue(key, out var v)) dict[key] = v = [];
         return v;
     }
 

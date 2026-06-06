@@ -61,75 +61,78 @@ public static class DiffCommand
 
             try
             {
-                await AnsiConsole.Progress().StartAsync(async ctx =>
+                try
                 {
-                    var t1 = ctx.AddTask("[green]Analyzing baseline...[/]");
-                    var t2 = ctx.AddTask("[green]Analyzing problem dump...[/]");
+                    await AnsiConsole.Progress().StartAsync(async ctx =>
+                    {
+                        var t1 = ctx.AddTask("[green]Analyzing baseline...[/]");
+                        var t2 = ctx.AddTask("[green]Analyzing problem dump...[/]");
 
-                    await Task.Run(() => { baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, topN); t1.Value = 100; }, cancellationToken);
-                    currentDump = problemFile.Name;
-                    await Task.Run(() => { problemResult = AnalysisEngine.Analyze(problemFile.FullName, topN); t2.Value = 100; }, cancellationToken);
-                });
+                        await Task.Run(() => { baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, topN, cancellationToken: cancellationToken); t1.Value = 100; }, cancellationToken);
+                        currentDump = problemFile.Name;
+                        await Task.Run(() => { problemResult = AnalysisEngine.Analyze(problemFile.FullName, topN, cancellationToken: cancellationToken); t2.Value = 100; }, cancellationToken);
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    ErrorReporting.PrintAnalysisError(ex, currentDump);
+                    Environment.ExitCode = 1;
+                    return;
+                }
+
+                if (baselineResult == null || problemResult == null) return;
+
+                var diff = DiffAnalyzer.Compare(
+                    baselineResult.HeapTypes,
+                    problemResult.HeapTypes,
+                    baselineResult.GcStats,
+                    problemResult.GcStats,
+                    baselineResult.Threads.Count,
+                    problemResult.Threads.Count,
+                    cancellationToken
+                );
+
+                var baseName = Path.Combine(outputDir.FullName,
+                    $"diff_{Path.GetFileNameWithoutExtension(baselineFile.Name)}_vs_{Path.GetFileNameWithoutExtension(problemFile.Name)}");
+
+                foreach (var fmt in formats)
+                {
+                    switch (fmt.ToLowerInvariant())
+                    {
+                        case "json":
+                            var jsonPath = baseName + ".json";
+                            await JsonReporter.WriteAsync(diff, jsonPath, cancellationToken);
+                            AnsiConsole.MarkupLine($"  [green]✓[/] JSON diff → {Markup.Escape(jsonPath)}");
+                            break;
+
+                        case "html":
+                            var htmlPath = baseName + ".html";
+                            await WriteDiffHtml(diff, baselineResult, problemResult, htmlPath, cancellationToken);
+                            AnsiConsole.MarkupLine($"  [green]✓[/] HTML diff → {Markup.Escape(htmlPath)}");
+                            break;
+
+                        case "md":
+                        case "markdown":
+                            var mdPath = baseName + ".md";
+                            await WriteDiffMarkdown(diff, baselineResult, problemResult, mdPath, cancellationToken);
+                            AnsiConsole.MarkupLine($"  [green]✓[/] Markdown diff → {Markup.Escape(mdPath)}");
+                            break;
+                    }
+                }
+
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"Heap delta: [yellow]{FormatBytes(diff.HeapDeltaBytes)}[/]  |  Thread delta: [yellow]{diff.ThreadDelta:+#;-#;0}[/]");
+                AnsiConsole.MarkupLine($"Growing types: [red]{diff.GrowingTypes.Count}[/]  |  New types: [yellow]{diff.NewTypes.Count}[/]  |  Disappeared: [green]{diff.DisappearedTypes.Count}[/]");
             }
             catch (OperationCanceledException)
             {
-                throw;
+                AnsiConsole.MarkupLine("\n[yellow]Canceled.[/]");
+                Environment.ExitCode = 130; // conventional exit code for interrupted (Ctrl+C)
             }
-            catch (Exception ex)
-            {
-                ErrorReporting.PrintAnalysisError(ex, currentDump);
-                Environment.ExitCode = 1;
-                return;
-            }
-
-            if (baselineResult == null || problemResult == null) return;
-
-            var diff = DiffAnalyzer.Compare(
-                baselineResult.HeapTypes,
-                problemResult.HeapTypes,
-                baselineResult.GcStats,
-                problemResult.GcStats,
-                baselineResult.Threads.Count,
-                problemResult.Threads.Count
-            );
-
-            var baseName = Path.Combine(outputDir.FullName,
-                $"diff_{Path.GetFileNameWithoutExtension(baselineFile.Name)}_vs_{Path.GetFileNameWithoutExtension(problemFile.Name)}");
-
-            foreach (var fmt in formats)
-            {
-                switch (fmt.ToLowerInvariant())
-                {
-                    case "json":
-                        var jsonPath = baseName + ".json";
-                        await File.WriteAllTextAsync(jsonPath,
-                            System.Text.Json.JsonSerializer.Serialize(diff,
-                                new System.Text.Json.JsonSerializerOptions
-                                {
-                                    WriteIndented = true,
-                                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-                                }));
-                        AnsiConsole.MarkupLine($"  [green]✓[/] JSON diff → {Markup.Escape(jsonPath)}");
-                        break;
-
-                    case "html":
-                        var htmlPath = baseName + ".html";
-                        await WriteDiffHtml(diff, baselineResult, problemResult, htmlPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] HTML diff → {Markup.Escape(htmlPath)}");
-                        break;
-
-                    case "md":
-                    case "markdown":
-                        var mdPath = baseName + ".md";
-                        await WriteDiffMarkdown(diff, baselineResult, problemResult, mdPath);
-                        AnsiConsole.MarkupLine($"  [green]✓[/] Markdown diff → {Markup.Escape(mdPath)}");
-                        break;
-                }
-            }
-
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"Heap delta: [yellow]{FormatBytes(diff.HeapDeltaBytes)}[/]  |  Thread delta: [yellow]{diff.ThreadDelta:+#;-#;0}[/]");
-            AnsiConsole.MarkupLine($"Growing types: [red]{diff.GrowingTypes.Count}[/]  |  New types: [yellow]{diff.NewTypes.Count}[/]  |  Disappeared: [green]{diff.DisappearedTypes.Count}[/]");
         });
 
         return cmd;
@@ -139,7 +142,8 @@ public static class DiffCommand
         MemDumpAnalyzer.Core.Models.DiffResult diff,
         MemDumpAnalyzer.Core.Models.AnalysisResult baseline,
         MemDumpAnalyzer.Core.Models.AnalysisResult problem,
-        string path)
+        string path,
+        CancellationToken cancellationToken)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<!DOCTYPE html><html><head><meta charset=UTF-8><title>Diff Report</title>");
@@ -163,14 +167,15 @@ public static class DiffCommand
             sb.AppendLine($"<li><code>{WebUtility.HtmlEncode(t)}</code></li>");
         sb.AppendLine("</ul></body></html>");
 
-        await File.WriteAllTextAsync(path, sb.ToString());
+        await File.WriteAllTextAsync(path, sb.ToString(), cancellationToken);
     }
 
     private static async Task WriteDiffMarkdown(
         MemDumpAnalyzer.Core.Models.DiffResult diff,
         MemDumpAnalyzer.Core.Models.AnalysisResult baseline,
         MemDumpAnalyzer.Core.Models.AnalysisResult problem,
-        string path)
+        string path,
+        CancellationToken cancellationToken)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("# Diff Report");
@@ -186,7 +191,7 @@ public static class DiffCommand
         foreach (var t in diff.GrowingTypes.Take(50))
             sb.AppendLine($"| `{t.TypeName}` | {t.BaselineCount:N0} | {t.ProblemCount:N0} | +{t.CountDelta:N0} | +{FormatBytes(t.SizeDeltaBytes)} |");
         sb.AppendLine();
-        await File.WriteAllTextAsync(path, sb.ToString());
+        await File.WriteAllTextAsync(path, sb.ToString(), cancellationToken);
     }
 
     private static string FormatBytes(long bytes)

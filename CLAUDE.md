@@ -38,7 +38,7 @@ memdump-analyzer/
 │   ├── MemDumpAnalyzer.Reporting/
 │   │   ├── HtmlReporter.cs            # Scriban + LoopLimit=0
 │   │   ├── MarkdownReporter.cs
-│   │   ├── JsonReporter.cs            # CamelCase serialization
+│   │   ├── JsonReporter.cs            # CamelCase, source-generated (ReportJsonContext)
 │   │   ├── PdfReporter.cs             # QuestPDF, no TechnicalDetails truncation
 │   │   └── EmbeddedTemplate.cs        # Full Scriban HTML template (snake_case properties)
 │   └── MemDumpAnalyzer.Cli/
@@ -105,11 +105,20 @@ Every HTML/Markdown/PDF/JSON report contains:
 - **TechnicalDetails per finding**: `FindingEngine` builds rich multi-line preformatted blocks — blocked thread stacks with assembly names (`[AssemblyName]` suffix), thread pattern tables, LOH segment lists, etc.
 - **Scriban LoopLimit = 0**: Required for real dumps with thousands of threads.
 
+## Trim / AOT Compatibility
+
+All projects build with `IsAotCompatible` + trim/AOT analyzers enabled — keep new code warning-free:
+
+- **JSON**: never use reflection-based `JsonSerializer.Serialize(obj, options)`. All report root types are registered in `ReportJsonContext` (source-generated, camelCase, string enums); add new root types there with `[JsonSerializable]`.
+- **Scriban**: reads the model graph via reflection at render time, which the trimmer can't see. `MemDumpAnalyzer.Reporting/ILLink.Descriptors.xml` (embedded resource) preserves all of `MemDumpAnalyzer.Core` — new model types are covered automatically. Pass the model via `scriptObj["r"] = result` (no reflection), not `Import(anonymousObject)`. Delegate `Import("name", Func<...>)` calls are fine; their IL2026 is suppressed on `HtmlReporter.Render`.
+- **Spectre.Console**: `AnsiConsole.WriteException` is not AOT compatible — print `Markup.Escape(ex.ToString())` instead.
+- One known residual warning at trimmed publish: IL2075 inside `QuestPDF.Drawing.Proxy.LayoutDebugging` (library-internal, layout-debugging path only).
+
 ## Key Dependencies
 
 | Package | Purpose |
 |---|---|
-| `Microsoft.Diagnostics.Runtime` 3.1.x (ClrMD) | Read .dmp files |
+| `Microsoft.Diagnostics.Runtime` 4.0.x (ClrMD) | Read .dmp files |
 | `System.CommandLine` 3.0.0-preview.4 | CLI argument parsing |
 | `Scriban` 6.x | HTML report templating |
 | `QuestPDF` 2026.x | PDF generation (Community license) |

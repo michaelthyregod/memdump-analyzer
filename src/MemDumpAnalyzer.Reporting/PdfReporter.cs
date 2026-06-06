@@ -7,8 +7,11 @@ namespace MemDumpAnalyzer.Reporting;
 
 public static class PdfReporter
 {
-    public static void Write(AnalysisResult r, string outputPath)
+    public static void Write(AnalysisResult r, string outputPath, CancellationToken cancellationToken = default)
     {
+        // QuestPDF generation itself is not cancellable; honor cancellation before starting
+        cancellationToken.ThrowIfCancellationRequested();
+
         QuestPDF.Settings.License = LicenseType.Community;
 
         Document.Create(container =>

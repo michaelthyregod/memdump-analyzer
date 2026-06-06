@@ -5,17 +5,19 @@ namespace MemDumpAnalyzer.Core.Analysis;
 
 public static class HeapAnalyzer
 {
-    public static IReadOnlyList<HeapTypeStats> Analyze(ClrRuntime runtime, int topN = 100)
+    public static IReadOnlyList<HeapTypeStats> Analyze(
+        ClrRuntime runtime, int topN = 100, CancellationToken cancellationToken = default)
     {
         var heap = runtime.Heap;
         if (!heap.CanWalkHeap)
-            return Array.Empty<HeapTypeStats>();
+            return [];
 
         // Group by type name — track count, size, and last seen generation
         var stats = new Dictionary<string, (long Count, long TotalSize, int LastGen)>();
 
         foreach (var obj in heap.EnumerateObjects())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (obj.IsNull || !obj.IsValid) continue;
             var typeName = obj.Type?.Name ?? "<unknown>";
             var size = (long)obj.Size;

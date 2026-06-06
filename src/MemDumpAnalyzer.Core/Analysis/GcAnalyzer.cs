@@ -5,7 +5,7 @@ namespace MemDumpAnalyzer.Core.Analysis;
 
 public static class GcAnalyzer
 {
-    public static GcStats Analyze(ClrRuntime runtime)
+    public static GcStats Analyze(ClrRuntime runtime, CancellationToken cancellationToken = default)
     {
         var heap = runtime.Heap;
         var segments = new List<GcSegmentInfo>();
@@ -15,6 +15,8 @@ public static class GcAnalyzer
 
         foreach (var seg in heap.Segments)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             long committed = (long)seg.CommittedMemory.Length;
             long reserved = (long)seg.ReservedMemory.Length;
             long objectBytes = (long)(seg.ObjectRange.End - seg.ObjectRange.Start);

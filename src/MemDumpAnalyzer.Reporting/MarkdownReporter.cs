@@ -183,8 +183,8 @@ public static class MarkdownReporter
         return sb.ToString();
     }
 
-    public static async Task WriteAsync(AnalysisResult result, string outputPath)
-        => await File.WriteAllTextAsync(outputPath, Render(result));
+    public static async Task WriteAsync(AnalysisResult result, string outputPath, CancellationToken cancellationToken = default)
+        => await File.WriteAllTextAsync(outputPath, Render(result), cancellationToken);
 
     private static string FormatBytes(long bytes)
     {
