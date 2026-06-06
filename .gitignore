@@ -49,6 +49,9 @@ artifacts/
 *.userosscache
 *.sln.docstates
 
+# VS publish profiles (machine-specific)
+[Pp]ublish[Pp]rofiles/
+
 # VS test results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
@@ -133,6 +136,11 @@ $RECYCLE.BIN/
 secrets.json
 appsettings.*.json
 !appsettings.Development.json
+
+## ── Claude Code ──────────────────────────────────────────────────────────────
+
+# Local (per-machine) settings — shared settings stay tracked
+.claude/settings.local.json
 
 ## ── Misc tooling ─────────────────────────────────────────────────────────────
 
