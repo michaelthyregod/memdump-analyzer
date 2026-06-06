@@ -110,7 +110,7 @@ Every HTML/Markdown/PDF/JSON report contains:
 | Package | Purpose |
 |---|---|
 | `Microsoft.Diagnostics.Runtime` 3.1.x (ClrMD) | Read .dmp files |
-| `System.CommandLine` 3.0-preview | CLI argument parsing |
+| `System.CommandLine` 3.0.0-preview.4 | CLI argument parsing |
 | `Scriban` 6.x | HTML report templating |
 | `QuestPDF` 2026.x | PDF generation (Community license) |
 | `Spectre.Console` | Rich terminal output |
