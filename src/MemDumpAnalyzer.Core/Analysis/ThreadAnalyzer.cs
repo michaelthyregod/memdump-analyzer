@@ -27,9 +27,7 @@ public static class ThreadAnalyzer
             // Supplement: detect blocking pattern even when LockCount == 0
             blockingReason ??= DetectBlockingFromFrames(frames) is { } wr ? $"Waiting on {wr}" : null;
 
-            string? currentException = thread.CurrentException != null
-                ? $"{thread.CurrentException.Type?.Name}: {thread.CurrentException.Message}"
-                : null;
+            string? currentException = TryGetCurrentException(thread);
 
             threads.Add(new ThreadInfo(
                 OsThreadId: thread.OSThreadId,
@@ -45,6 +43,22 @@ public static class ThreadAnalyzer
 
         var groups = BuildGroups(threads);
         return new ThreadAnalysis(threads, groups);
+    }
+
+    // ClrThread.CurrentException reconstructs the exception object from the heap and throws
+    // InvalidOperationException ("Cannot construct a ClrException with a null Type") when the
+    // exception's type can't be resolved from the dump. Swallow that and treat as "no exception".
+    private static string? TryGetCurrentException(ClrThread thread)
+    {
+        try
+        {
+            var ex = thread.CurrentException;
+            return ex != null ? $"{ex.Type?.Name}: {ex.Message}" : null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     // ── Frame formatting ─────────────────────────────────────────────────────
