@@ -14,8 +14,8 @@
 		</EmbeddedResource>
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="QuestPDF" Version="2026.5.0" />
-		<PackageReference Include="Scriban" Version="7.2.4" />
+		<PackageReference Include="QuestPDF" Version="2026.7.1" />
+		<PackageReference Include="Scriban" Version="7.2.5" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\MemDumpAnalyzer.Core\MemDumpAnalyzer.Core.csproj" />
