@@ -159,3 +159,4 @@ _ReSharper*/
 
 # BenchmarkDotNet artifacts
 BenchmarkDotNet.Artifacts/
+/memdump-analyzer-win-x64.zip
