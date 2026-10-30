@@ -8,6 +8,10 @@ mem-dumps/
 # Generated report output
 report/
 
+# Published binaries and download archives (attach them to a GitHub release instead)
+*.exe
+*.zip
+
 ## ── .NET build artifacts ──────────────────────────────────────────────────────
 
 # Build results
