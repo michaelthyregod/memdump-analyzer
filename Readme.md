@@ -17,6 +17,17 @@ MemDumpAnalyzer.Cli.exe diff mem-dumps/baseline.dmp mem-dumps/problem.dmp
 
 See [mem-dumps/README.md](mem-dumps/README.md) for how to capture good dumps.
 
+## License
+
+memdump-analyzer is released under the [MIT License](LICENSE): use it, fork it and change it freely, at
+your own risk. It is provided "as is", without any warranty, and the authors are not liable for how it
+is used. Third-party components keep their own licences — see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Note that the PDF report uses **QuestPDF**, whose
+licence is not open source and may require a paid licence for larger organisations; the HTML,
+Markdown and JSON reports don't use it.
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Report skins
 
 `--skin` sets the look and feel of the HTML, PDF and diff reports: colours, fonts, logo and texts.

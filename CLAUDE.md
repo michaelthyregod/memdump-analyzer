@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The heuristics are based on Nikolay Mitikov's https://makingitfaster.tips/ and https://github.com/mitikov, plus the owner's own experience — see the "What it's based on" table in `Readme.md`. Consult those sources before changing a rule, and keep the table in `Readme.md` in sync with `FindingEngine`. Sitecore.MemoryDiagnostics has no license: take ideas, don't copy code.
 
+Licence: MIT (`LICENSE`). When adding, removing or upgrading a shipped dependency, font or other asset, update `THIRD-PARTY-NOTICES.md`. QuestPDF's licence is not open source; the PDF-engine decision is open in `TODO.md` and must be settled before the first release.
+
 ## Solution Structure
 
 ```
