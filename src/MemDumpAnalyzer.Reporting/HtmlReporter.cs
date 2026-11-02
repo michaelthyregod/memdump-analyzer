@@ -20,10 +20,15 @@ public static class HtmlReporter
         if (template.HasErrors)
             throw new InvalidOperationException($"Template parse error: {string.Join("; ", template.Messages)}");
 
+        var aliveThreads = result.Threads.Where(t => t.IsAlive).ToList();
         var scriptObj = new ScriptObject
         {
             ["r"] = result,
-            ["blocked_thread_count"] = result.Threads.Count(t => t.BlockingReason != null)
+            ["dump_file_name"] = Path.GetFileName(result.DumpPath),
+            ["generated_utc"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+            ["alive_threads"] = aliveThreads,
+            ["alive_thread_count"] = aliveThreads.Count,
+            ["blocked_thread_count"] = aliveThreads.Count(t => t.BlockingReason != null)
         };
 
         scriptObj.Import("format_bytes", new Func<long, string>(FormatBytes));

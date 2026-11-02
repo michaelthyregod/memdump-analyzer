@@ -45,6 +45,8 @@ public static class PdfReporter
                         AddRow(t, "AppDomain", r.AppDomainName);
                         AddRow(t, "OS", r.OsVersion);
                         AddRow(t, "Health score", $"{r.HealthScore}/100");
+                        if (!r.HeapWalkComplete)
+                            AddRow(t, "Heap data", "Incomplete — dump captured while a GC was running");
                     });
 
                     // Findings
@@ -80,7 +82,8 @@ public static class PdfReporter
                         AddRow(t, "Gen1", FormatBytes(r.GcStats.Gen1Bytes));
                         AddRow(t, "Gen2", FormatBytes(r.GcStats.Gen2Bytes));
                         AddRow(t, "LOH", FormatBytes(r.GcStats.LohBytes));
-                        AddRow(t, "LOH fragmentation", $"{r.GcStats.LohFragmentationPercent:F1}%");
+                        AddRow(t, "LOH fragmentation", $"{r.GcStats.LohFragmentationPercent:F1}% ({FormatBytes(r.GcStats.LohFreeBytes)} free)");
+                        AddRow(t, "Gen2 fragmentation", $"{r.GcStats.Gen2FragmentationPercent:F1}% ({FormatBytes(r.GcStats.Gen2FreeBytes)} free)");
                     });
 
                     // Top consumers
@@ -147,7 +150,15 @@ public static class PdfReporter
 
                     // Threads
                     col.Item().Text("6. Thread Summary").FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
-                    col.Item().Text($"Total: {r.Threads.Count}  |  Blocked: {r.Threads.Count(t => t.BlockingReason != null)}");
+                    var alive = r.Threads.Where(t => t.IsAlive).ToList();
+                    col.Item().Text($"Live: {alive.Count}  |  Dead (not analyzed): {r.Threads.Count - alive.Count}  |  Waiting/blocked: {alive.Count(t => t.BlockingReason != null)}");
+                    if (r.ThreadPool is { } tp)
+                        col.Item().Text($"Thread pool: active {tp.ActiveWorkerThreads}, idle {tp.IdleWorkerThreads}, min {tp.MinThreads}, max {tp.MaxThreads}  |  CPU at capture (system-wide): {tp.CpuUtilization}%");
+                    foreach (var g in r.ThreadGroups.Take(10))
+                    {
+                        var topFrame = g.RepresentativeStack.FirstOrDefault(f => !f.StartsWith('[')) ?? g.RepresentativeStack.FirstOrDefault() ?? "";
+                        col.Item().Text($"{g.ThreadCount,5:N0} threads ({g.Percentage:F1}%) — {g.WaitReason ?? "running"} — {topFrame}").FontSize(8);
+                    }
                 });
 
                 page.Footer().AlignCenter().Text(t =>

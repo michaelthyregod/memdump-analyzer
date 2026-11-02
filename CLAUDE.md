@@ -6,18 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `memdump-analyzer` is a CLI tool that loads Windows .NET Framework 4.x / .NET Core process memory dumps (`.dmp`), runs automated analyses, and produces multi-audience reports (HTML, Markdown, JSON, PDF). Supports single-dump analysis and two-dump comparison (diff) mode.
 
+The heuristics are based on Nikolay Mitikov's https://makingitfaster.tips/ and https://github.com/mitikov, plus the owner's own experience — see the "What it's based on" table in `Readme.md`. Consult those sources before changing a rule, and keep the table in `Readme.md` in sync with `FindingEngine`. Sitecore.MemoryDiagnostics has no license: take ideas, don't copy code.
+
 ## Solution Structure
 
 ```
 memdump-analyzer/
-├── memdump-analyzer.sln
+├── memdump-analyzer.slnx
 ├── known-assemblies.txt           # Assembly filter for hotspot analysis (checked in, edit freely)
 ├── src/
 │   ├── MemDumpAnalyzer.Core/
-│   │   ├── DumpLoader.cs              # Opens .dmp via ClrMD, validates runtime
+│   │   ├── DumpLoader.cs              # Opens .dmp via ClrMD, validates runtime, reads capture time from the minidump header
 │   │   ├── AnalysisEngine.cs          # Orchestrates all analyzers; accepts knownAssembliesPath
 │   │   ├── Analysis/
-│   │   │   ├── ThreadAnalyzer.cs      # Full stacks (no cap); groups threads by stack pattern
+│   │   │   ├── HeapWalker.cs          # ONE heap pass: type stats, strings, samples, free bytes; best-effort when mid-GC
+│   │   │   ├── ThreadAnalyzer.cs      # Full stacks; ClassifyWait → WaitKind; groups live threads; reads thread pool
 │   │   │   ├── HeapAnalyzer.cs
 │   │   │   ├── GcAnalyzer.cs
 │   │   │   ├── StringAnalyzer.cs
@@ -26,8 +29,9 @@ memdump-analyzer/
 │   │   │   └── ApplicationHotspotAnalyzer.cs  # Filters assemblies not in known list
 │   │   ├── Models/
 │   │   │   ├── AnalysisResult.cs      # Includes ApplicationHotspots + KnownAssemblyFilters
-│   │   │   ├── ThreadInfo.cs
+│   │   │   ├── ThreadInfo.cs          # + IsAlive, IsFinalizer, WaitKind
 │   │   │   ├── ThreadGroup.cs         # Thread cluster (stack pattern + count + wait reason)
+│   │   │   ├── ThreadPoolStats.cs     # !threadpool data: CPU, min/max, active/idle workers
 │   │   │   ├── HeapTypeStats.cs
 │   │   │   ├── GcStats.cs
 │   │   │   ├── Finding.cs             # Includes TechnicalDetails (full pre-formatted stacks)
@@ -43,12 +47,15 @@ memdump-analyzer/
 │   │   └── EmbeddedTemplate.cs        # Full Scriban HTML template (snake_case properties)
 │   └── MemDumpAnalyzer.Cli/
 │       ├── Program.cs
+│       ├── ErrorReporting.cs          # Actionable messages for dump-loading failures
 │       └── Commands/
 │           ├── AnalyzeCommand.cs      # --known-assemblies option; auto-detects known-assemblies.txt
 │           └── DiffCommand.cs
 ├── tests/
 │   └── MemDumpAnalyzer.Tests/
-│       ├── FindingEngineTests.cs      # 22 tests
+│       ├── FindingEngineTests.cs
+│       ├── HeuristicsTests.cs         # Wait classification, thread/lock/GC rules, HTML escaping
+│       ├── DiffAnalyzerTests.cs
 │       └── ReportingTests.cs
 └── mem-dumps/                         # Drop .dmp files here
 ```
@@ -101,7 +108,12 @@ Every HTML/Markdown/PDF/JSON report contains:
 ## Key Design Decisions
 
 - **No frame truncation**: `ThreadAnalyzer` collects the full stack (no `.Take()` limit). `FindingEngine` emits all frames in `TechnicalDetails`. PDF also shows full details.
-- **Thread grouping**: Threads are fingerprinted by their top 8 meaningful frames, grouped, and sorted by count. The `ThreadGroup` model carries `WaitReason` (detected via frame string matching), representative stack, and sample OS thread IDs.
+- **Thread grouping**: Live threads (dead ones are excluded — a w3wp can carry thousands) are fingerprinted by their top 8 meaningful frames, grouped, and sorted by count. The `ThreadGroup` model carries `WaitReason`, representative stack, and sample OS thread IDs.
+- **Wait classification** (`ThreadAnalyzer.ClassifyWait`): a wait primitive (Monitor.Enter/Wait, WaitHandle, Sleep, socket/SNI I/O) must be in the top 8 meaningful frames, otherwise the thread counts as running. Then the first context frame top-down (Task.Wait/.Result, SqlClient, StackExchange.Redis, SolrNet, HttpWebRequest, Sitecore idle-worker loops) decides the `WaitKind`. Monitor.Enter and a synchronous `SemaphoreSlim.Wait(` (under the Monitor.Wait that implements it) are `LockContention` unless an idle-worker context matches; the lock site is the first frame below the Monitor/SemaphoreSlim frames. `BlockingReason` is null for running threads and idle workers.
+- **Mid-GC dumps**: `CanWalkHeap == false` means the snapshot caught a GC. The walk continues best-effort, `AnalysisResult.HeapWalkComplete` is false, findings say "partial heap walk", and every report shows a banner.
+- **Single dump ≠ trend**: no leak findings from one dump (use `diff`); lock contention is never called a deadlock. Diff compares all types (`topN = int.MaxValue`), not the top N.
+- **Fragmentation** is free-object bytes / allocated range (what `!dumpheap -stat` lists as Free), not committed-vs-range.
+- **HTML template**: Scriban does not auto-escape — every text value must go through `| html.escape` (type names contain `<>`, heap strings contain arbitrary content).
 - **TechnicalDetails per finding**: `FindingEngine` builds rich multi-line preformatted blocks — blocked thread stacks with assembly names (`[AssemblyName]` suffix), thread pattern tables, LOH segment lists, etc.
 - **Scriban LoopLimit = 0**: Required for real dumps with thousands of threads.
 
@@ -132,9 +144,12 @@ These properties changed from v2 to v3 — use these:
 - `ClrSegment.Kind` (type `GCSegmentKind`): `.Large`, `.Pinned`, `.Frozen`, `.Ephemeral`, `.Generation0/1/2`
 - No `ClrHeap.GetGeneration()` — use `heap.GetSegmentByAddress(addr)?.Kind` instead
 - `ClrSegment.CommittedMemory.Length`, `ClrSegment.ObjectRange`, `ClrSegment.Generation0/1/2` (sub-ranges on Ephemeral)
-- String value from object: `(string)clrObject`
+- String value from object: `clrObject.AsString(int.MaxValue)` — `(string)clrObject` and `AsString()` stop at 4,096 chars (verified on a real dump)
 - `DataTarget.LoadDump(path)` static, `DataTarget.DataReader.DisplayName`
-- `ClrRuntime.Threads` enumerates all threads; `thread.EnumerateStackTrace()` for frames
+- `ClrRuntime.Threads` enumerates all threads, **including dead ones** (`thread.IsAlive`); `thread.EnumerateStackTrace()` for frames
+- `ClrRuntime.ThreadPool` (nullable): `CpuUtilization`, `MinThreads`, `MaxThreads`, `ActiveWorkerThreads`, `IdleWorkerThreads`, `RetiredWorkerThreads`
+- `ClrHeap.CanWalkHeap` false = dump taken mid-GC; `ClrObject.IsFree` marks free (fragmentation) objects
+- `ClrHeap.EnumerateSyncBlocks()` exists but gave garbage on a mid-GC dump (every block "1000 waiters", no owner) — don't rely on it
 - `ClrStackFrame.Method` (nullable), `ClrStackFrame.FrameName` (for runtime special frames), `ClrStackFrame.InstructionPointer`
 - Assembly name from frame: `frame.Method?.Type?.Module?.Name` → pass through `Path.GetFileNameWithoutExtension`
 

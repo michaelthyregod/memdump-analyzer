@@ -16,23 +16,25 @@ public static class AnalysisEngine
         var runtime = loaded.Runtime;
 
         var threadAnalysis  = ThreadAnalyzer.Analyze(runtime, cancellationToken);
-        var heapTypes       = HeapAnalyzer.Analyze(runtime, topN, cancellationToken);
-        var gc              = GcAnalyzer.Analyze(runtime, cancellationToken);
-        var strings         = StringAnalyzer.Analyze(runtime, cancellationToken);
-        var leaks           = LeakDetector.Analyze(runtime, heapTypes, cancellationToken);
+        var threadPool      = ThreadAnalyzer.ReadThreadPool(runtime);
+        var heapWalk        = HeapWalker.Walk(runtime.Heap, cancellationToken);   // one pass for heap, strings, leaks, free space
+        var heapTypes       = HeapAnalyzer.Analyze(heapWalk, topN);
+        var gc              = GcAnalyzer.Analyze(runtime, heapWalk, cancellationToken);
+        var strings         = StringAnalyzer.Analyze(heapWalk);
+        var leaks           = LeakDetector.Analyze(runtime, heapWalk, heapTypes, cancellationToken);
 
         var knownPrefixes   = ApplicationHotspotAnalyzer.LoadFilter(knownAssembliesPath);
         var hotspots        = ApplicationHotspotAnalyzer.Analyze(threadAnalysis.Threads, knownPrefixes, cancellationToken);
 
         var (findings, score) = FindingEngine.Evaluate(
             threadAnalysis.Threads, threadAnalysis.Groups,
-            heapTypes, gc, strings, leaks, cancellationToken);
+            heapTypes, gc, strings, leaks, threadPool, heapWalk.Complete, cancellationToken);
 
         var dumpInfo = new FileInfo(dumpPath);
 
         return new AnalysisResult(
             DumpPath: dumpPath,
-            CaptureTime: dumpInfo.LastWriteTimeUtc,
+            CaptureTime: loaded.CaptureTimeUtc ?? dumpInfo.LastWriteTimeUtc,
             DumpFileSizeBytes: dumpInfo.Length,
             ClrVersion: loaded.ClrVersion,
             AppDomainName: loaded.AppDomainName,
@@ -46,7 +48,9 @@ public static class AnalysisEngine
             ApplicationHotspots: hotspots,
             KnownAssemblyFilters: knownPrefixes,
             Findings: findings,
-            HealthScore: score
+            HealthScore: score,
+            HeapWalkComplete: heapWalk.Complete,
+            ThreadPool: threadPool
         );
     }
 }

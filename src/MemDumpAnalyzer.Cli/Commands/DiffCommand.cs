@@ -22,7 +22,7 @@ public static class DiffCommand
         };
         var topOpt = new Option<int>("--top")
         {
-            Description = "Top N types",
+            Description = "Number of rows shown per table in the diff report (all types are compared)",
             DefaultValueFactory = _ => 100
         };
 
@@ -68,9 +68,9 @@ public static class DiffCommand
                         var t1 = ctx.AddTask("[green]Analyzing baseline...[/]");
                         var t2 = ctx.AddTask("[green]Analyzing problem dump...[/]");
 
-                        await Task.Run(() => { baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, topN, cancellationToken: cancellationToken); t1.Value = 100; }, cancellationToken);
+                        await Task.Run(() => { baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, int.MaxValue, cancellationToken: cancellationToken); t1.Value = 100; }, cancellationToken);
                         currentDump = problemFile.Name;
-                        await Task.Run(() => { problemResult = AnalysisEngine.Analyze(problemFile.FullName, topN, cancellationToken: cancellationToken); t2.Value = 100; }, cancellationToken);
+                        await Task.Run(() => { problemResult = AnalysisEngine.Analyze(problemFile.FullName, int.MaxValue, cancellationToken: cancellationToken); t2.Value = 100; }, cancellationToken);
                     });
                 }
                 catch (OperationCanceledException)
@@ -86,13 +86,21 @@ public static class DiffCommand
 
                 if (baselineResult == null || problemResult == null) return;
 
+                // Every type is compared — comparing only the top N would report a type that merely moved
+                // across the cut-off as "new" or "disappeared".
+                foreach (var (name, res) in new[] { (baselineFile.Name, baselineResult), (problemFile.Name, problemResult) })
+                {
+                    if (!res.HeapWalkComplete)
+                        AnsiConsole.MarkupLine($"  [yellow]⚠ {Markup.Escape(name)} was captured mid-GC — its heap numbers are partial, so type deltas are unreliable.[/]");
+                }
+
                 var diff = DiffAnalyzer.Compare(
                     baselineResult.HeapTypes,
                     problemResult.HeapTypes,
                     baselineResult.GcStats,
                     problemResult.GcStats,
-                    baselineResult.Threads.Count,
-                    problemResult.Threads.Count,
+                    baselineResult.Threads.Count(t => t.IsAlive),
+                    problemResult.Threads.Count(t => t.IsAlive),
                     cancellationToken
                 );
 
@@ -111,15 +119,19 @@ public static class DiffCommand
 
                         case "html":
                             var htmlPath = baseName + ".html";
-                            await WriteDiffHtml(diff, baselineResult, problemResult, htmlPath, cancellationToken);
+                            await WriteDiffHtml(diff, baselineResult, problemResult, htmlPath, topN, cancellationToken);
                             AnsiConsole.MarkupLine($"  [green]✓[/] HTML diff → {Markup.Escape(htmlPath)}");
                             break;
 
                         case "md":
                         case "markdown":
                             var mdPath = baseName + ".md";
-                            await WriteDiffMarkdown(diff, baselineResult, problemResult, mdPath, cancellationToken);
+                            await WriteDiffMarkdown(diff, baselineResult, problemResult, mdPath, topN, cancellationToken);
                             AnsiConsole.MarkupLine($"  [green]✓[/] Markdown diff → {Markup.Escape(mdPath)}");
+                            break;
+
+                        default:
+                            AnsiConsole.MarkupLine($"  [yellow]Format not supported for diff:[/] {Markup.Escape(fmt)} (use html, md or json)");
                             break;
                     }
                 }
@@ -143,6 +155,7 @@ public static class DiffCommand
         MemDumpAnalyzer.Core.Models.AnalysisResult baseline,
         MemDumpAnalyzer.Core.Models.AnalysisResult problem,
         string path,
+        int rows,
         CancellationToken cancellationToken)
     {
         var sb = new System.Text.StringBuilder();
@@ -156,14 +169,14 @@ public static class DiffCommand
         foreach (var f in diff.Findings)
             sb.AppendLine($"<p><strong>[{f.Severity}]</strong> {WebUtility.HtmlEncode(f.Summary)}: {WebUtility.HtmlEncode(f.Explanation)}</p>");
 
-        sb.AppendLine("<h2>Growing Types (Top 50)</h2>");
+        sb.AppendLine($"<h2>Growing Types (Top {rows})</h2>");
         sb.AppendLine("<table><tr><th>Type</th><th>Baseline Count</th><th>Problem Count</th><th>Delta</th><th>Size Delta</th></tr>");
-        foreach (var t in diff.GrowingTypes.Take(50))
-            sb.AppendLine($"<tr><td>{WebUtility.HtmlEncode(t.TypeName)}</td><td>{t.BaselineCount:N0}</td><td>{t.ProblemCount:N0}</td><td class=grow>+{t.CountDelta:N0}</td><td class=grow>+{FormatBytes(t.SizeDeltaBytes)}</td></tr>");
+        foreach (var t in diff.GrowingTypes.Take(rows))
+            sb.AppendLine($"<tr><td>{WebUtility.HtmlEncode(t.TypeName)}</td><td>{t.BaselineCount:N0}</td><td>{t.ProblemCount:N0}</td><td class=grow>{t.CountDelta:+#,0;-#,0;0}</td><td class=grow>{(t.SizeDeltaBytes >= 0 ? "+" : "")}{FormatBytes(t.SizeDeltaBytes)}</td></tr>");
         sb.AppendLine("</table>");
 
         sb.AppendLine("<h2>New Types</h2><ul>");
-        foreach (var t in diff.NewTypes.Take(30))
+        foreach (var t in diff.NewTypes.Take(rows))
             sb.AppendLine($"<li><code>{WebUtility.HtmlEncode(t)}</code></li>");
         sb.AppendLine("</ul></body></html>");
 
@@ -175,6 +188,7 @@ public static class DiffCommand
         MemDumpAnalyzer.Core.Models.AnalysisResult baseline,
         MemDumpAnalyzer.Core.Models.AnalysisResult problem,
         string path,
+        int rows,
         CancellationToken cancellationToken)
     {
         var sb = new System.Text.StringBuilder();
@@ -184,12 +198,24 @@ public static class DiffCommand
         sb.AppendLine();
         sb.AppendLine($"Heap delta: **{FormatBytes(diff.HeapDeltaBytes)}** | Thread delta: **{diff.ThreadDelta:+#;-#;0}**");
         sb.AppendLine();
+        sb.AppendLine("## Findings");
+        sb.AppendLine();
+        foreach (var f in diff.Findings)
+            sb.AppendLine($"- **[{f.Severity}]** {f.Summary}: {f.Explanation}");
+        if (diff.Findings.Count == 0)
+            sb.AppendLine("No findings.");
+        sb.AppendLine();
         sb.AppendLine("## Growing Types");
         sb.AppendLine();
         sb.AppendLine("| Type | Baseline | Problem | Δ Count | Δ Size |");
         sb.AppendLine("|---|---:|---:|---:|---:|");
-        foreach (var t in diff.GrowingTypes.Take(50))
-            sb.AppendLine($"| `{t.TypeName}` | {t.BaselineCount:N0} | {t.ProblemCount:N0} | +{t.CountDelta:N0} | +{FormatBytes(t.SizeDeltaBytes)} |");
+        foreach (var t in diff.GrowingTypes.Take(rows))
+            sb.AppendLine($"| `{t.TypeName.Replace("|", "\\|")}` | {t.BaselineCount:N0} | {t.ProblemCount:N0} | {t.CountDelta:+#,0;-#,0;0} | {(t.SizeDeltaBytes >= 0 ? "+" : "")}{FormatBytes(t.SizeDeltaBytes)} |");
+        sb.AppendLine();
+        sb.AppendLine("## New Types");
+        sb.AppendLine();
+        foreach (var t in diff.NewTypes.Take(rows))
+            sb.AppendLine($"- `{t}`");
         sb.AppendLine();
         await File.WriteAllTextAsync(path, sb.ToString(), cancellationToken);
     }

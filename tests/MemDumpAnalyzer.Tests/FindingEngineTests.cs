@@ -36,7 +36,7 @@ public class FindingEngineTests
     }
 
     [Fact]
-    public void ThreadPoolExhaustion_WhenHighThreadCount()
+    public void HighThreadCount_WhenManyLiveThreads()
     {
         var threads = Enumerable.Range(1, 250)
             .Select(i => new ThreadInfo((uint)i, i, "Alive", null, [], false, false, null))
@@ -44,12 +44,12 @@ public class FindingEngineTests
 
         var (findings, score) = Eval(threads: threads);
 
-        Assert.Contains(findings, f => f.Id == "ThreadPoolExhaustion");
+        Assert.Contains(findings, f => f.Id == "HighThreadCount");
         Assert.True(score < 100);
     }
 
     [Fact]
-    public void ThreadPoolExhaustion_HasTechnicalDetails()
+    public void HighThreadCount_HasTechnicalDetails()
     {
         var frames = new[] { "System.Net.HttpWebRequest.GetResponse()  [System]", "MyApp.Client.Fetch()  [MyApp]" };
         var threads = Enumerable.Range(1, 250)
@@ -62,39 +62,38 @@ public class FindingEngineTests
 
         var (findings, _) = Eval(threads: threads, groups: groups);
 
-        var f = Assert.Single(findings, f => f.Id == "ThreadPoolExhaustion");
+        var f = Assert.Single(findings, f => f.Id == "HighThreadCount");
         Assert.NotNull(f.TechnicalDetails);
         Assert.True(f.TechnicalDetails!.Count > 0);
     }
 
     [Fact]
-    public void SuspectedDeadlock_WhenMultipleBlockedThreads()
+    public void LockContention_WhenTenThreadsWaitOnALock()
     {
-        var threads = new[]
-        {
-            new ThreadInfo(1, 1, "Blocked", null, [], false, false, "Monitor on 0x1234"),
-            new ThreadInfo(2, 2, "Blocked", null, [], false, false, "Monitor on 0x5678"),
-        };
+        var stack = new[] { "System.Threading.Monitor.Enter(System.Object)  [mscorlib]", "MyApp.Cache.Get(System.String)  [MyApp]" };
+        var threads = Enumerable.Range(1, 10)
+            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, stack, false, false,
+                "Waiting on contended lock (Monitor.Enter)", WaitKind: WaitKind.LockContention))
+            .ToList();
 
         var (findings, _) = Eval(threads: threads);
 
-        Assert.Contains(findings, f => f.Id == "SuspectedDeadlock");
+        Assert.Contains(findings, f => f.Id == "LockContention");
     }
 
     [Fact]
-    public void SuspectedDeadlock_HasTechnicalDetailsWithStacks()
+    public void LockContention_HasTechnicalDetailsWithStacks()
     {
-        var stack1 = new[] { "System.Threading.Monitor.Enter(Object)  [mscorlib]", "MyApp.Cache.Get(String)  [MyApp]" };
-        var stack2 = new[] { "System.Threading.Monitor.Wait(Object)  [mscorlib]", "MyApp.Db.Query(String)  [MyApp.Data]" };
-        var threads = new[]
-        {
-            new ThreadInfo(100, 1, "Blocked", null, stack1, false, false, "Holding 1 lock(s)"),
-            new ThreadInfo(200, 2, "Blocked", null, stack2, false, false, "Holding 2 lock(s)"),
-        };
+        var stack1 = new[] { "System.Threading.Monitor.Enter(System.Object)  [mscorlib]", "MyApp.Cache.Get(System.String)  [MyApp]" };
+        var stack2 = new[] { "System.Threading.Monitor.Enter(System.Object)  [mscorlib]", "MyApp.Db.Query(System.String)  [MyApp.Data]" };
+        var threads = Enumerable.Range(1, 10)
+            .Select(i => new ThreadInfo((uint)i, i, "Alive", null, i % 2 == 0 ? stack1 : stack2, false, false,
+                "Waiting on contended lock (Monitor.Enter)", WaitKind: WaitKind.LockContention))
+            .ToList();
 
         var (findings, _) = Eval(threads: threads);
 
-        var f = Assert.Single(findings, f => f.Id == "SuspectedDeadlock");
+        var f = Assert.Single(findings, f => f.Id == "LockContention");
         Assert.NotNull(f.TechnicalDetails);
         Assert.Contains(f.TechnicalDetails!, line => line.Contains("MyApp"));
     }
@@ -115,18 +114,6 @@ public class FindingEngineTests
     {
         var (findings, _) = Eval(gc: new GcStats(0, 0, 0, 0, 0, 0, 45.0, []));
         Assert.Contains(findings, f => f.Id == "LohFragmentationHigh");
-    }
-
-    [Fact]
-    public void Gen2Saturated_WhenAverageFillHigh()
-    {
-        var segments = new[]
-        {
-            new GcSegmentInfo(2, "Gen2", 100 * 1024 * 1024, 100 * 1024 * 1024, 0.92),
-            new GcSegmentInfo(2, "Gen2", 100 * 1024 * 1024, 100 * 1024 * 1024, 0.90),
-        };
-        var (findings, _) = Eval(gc: new GcStats(200 * 1024 * 1024, 0, 0, 200 * 1024 * 1024, 0, 0, 0, segments));
-        Assert.Contains(findings, f => f.Id == "Gen2Saturated");
     }
 
     [Fact]

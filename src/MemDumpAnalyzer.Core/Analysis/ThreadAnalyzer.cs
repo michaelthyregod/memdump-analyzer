@@ -5,7 +5,9 @@ namespace MemDumpAnalyzer.Core.Analysis;
 
 public static class ThreadAnalyzer
 {
-    private const int GroupSignatureDepth = 8;  // top N frames used to fingerprint a thread's work
+    private const int GroupSignatureDepth = 8;   // top N frames used to fingerprint a thread's work
+    private const int PrimitiveSearchDepth = 8;  // a wait primitive must be this close to the top to count
+    private const int ContextSearchDepth = 30;   // how deep to look for what the wait is for
 
     public record ThreadAnalysis(
         IReadOnlyList<ThreadInfo> Threads,
@@ -19,30 +21,51 @@ public static class ThreadAnalyzer
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var frames = thread.EnumerateStackTrace()
-                .Select(FormatFrame)
-                .ToList();
+            // Dead threads stay in the CLR thread list until cleaned up; they have no stack to read
+            IReadOnlyList<string> frames = thread.IsAlive
+                ? thread.EnumerateStackTrace().Select(FormatFrame).ToList()
+                : [];
 
-            string? blockingReason = thread.LockCount > 0 ? $"Holding {thread.LockCount} lock(s)" : null;
-            // Supplement: detect blocking pattern even when LockCount == 0
-            blockingReason ??= DetectBlockingFromFrames(frames) is { } wr ? $"Waiting on {wr}" : null;
-
-            string? currentException = TryGetCurrentException(thread);
+            var (kind, description) = ClassifyWait(frames);
 
             threads.Add(new ThreadInfo(
                 OsThreadId: thread.OSThreadId,
                 ManagedThreadId: thread.ManagedThreadId,
                 State: BuildStateString(thread),
-                CurrentException: currentException,
+                CurrentException: thread.IsAlive ? TryGetCurrentException(thread) : null,
                 StackFrames: frames,
                 IsGcThread: thread.IsGc,
                 IsBackground: false,
-                BlockingReason: blockingReason
+                BlockingReason: kind is WaitKind.None or WaitKind.IdleWorker ? null : $"Waiting on {description}",
+                IsAlive: thread.IsAlive,
+                IsFinalizer: thread.IsFinalizer,
+                WaitKind: kind
             ));
         }
 
         var groups = BuildGroups(threads);
         return new ThreadAnalysis(threads, groups);
+    }
+
+    /// <summary>Reads the CLR worker thread pool (SOS <c>!threadpool</c>); null when the dump doesn't expose it.</summary>
+    public static ThreadPoolStats? ReadThreadPool(ClrRuntime runtime)
+    {
+        try
+        {
+            var tp = runtime.ThreadPool;
+            if (tp == null) return null;
+            return new ThreadPoolStats(
+                CpuUtilization: tp.CpuUtilization,
+                MinThreads: tp.MinThreads,
+                MaxThreads: tp.MaxThreads,
+                ActiveWorkerThreads: tp.ActiveWorkerThreads,
+                IdleWorkerThreads: tp.IdleWorkerThreads,
+                RetiredWorkerThreads: tp.RetiredWorkerThreads);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     // ClrThread.CurrentException reconstructs the exception object from the heap and throws
@@ -83,76 +106,169 @@ public static class ThreadAnalyzer
         return Path.GetFileNameWithoutExtension(modulePath);
     }
 
-    // ── Wait-reason detection ─────────────────────────────────────────────────
-    // Looks at the top frames of a thread and returns a human description of what it is waiting on.
+    // ── Wait classification ───────────────────────────────────────────────────
+    //
+    // Two steps:
+    //  1. The wait primitive — must be near the top of the stack, otherwise the thread is running
+    //     and a primitive deeper down is just a caller that happens to be on the stack.
+    //  2. The context — the first frame (top-down) that says what the wait is for: a SQL read,
+    //     a Redis call, .Result on a Task, an idle worker loop. Searching for context first is
+    //     what lets "Task.Wait" win over the Monitor.Wait that implements it.
 
-    internal static string? DetectBlockingFromFrames(IReadOnlyList<string> frames)
+    private enum Primitive { None, LockEnter, SemaphoreGate, Signal, Sleep, Io }
+
+    private static readonly (string Pattern, Primitive Kind)[] Primitives =
+    [
+        ("System.Threading.Monitor.Enter(", Primitive.LockEnter),
+        ("System.Threading.Monitor.ReliableEnter", Primitive.LockEnter),
+        ("System.Threading.Monitor.TryEnter(", Primitive.LockEnter),
+        ("[JIT_MonEnter", Primitive.LockEnter),
+        ("System.Threading.Monitor.Wait(", Primitive.Signal),
+        ("System.Threading.Monitor.ObjWait", Primitive.Signal),
+        ("System.Threading.WaitHandle.", Primitive.Signal),
+        ("System.Threading.ManualResetEventSlim.Wait", Primitive.Signal),
+        ("System.Threading.SemaphoreSlim.Wait(", Primitive.SemaphoreGate),
+        ("System.Threading.Thread.Join", Primitive.Signal),
+        ("System.Threading.Thread.Sleep", Primitive.Sleep),
+        ("System.Threading.Thread.SleepInternal", Primitive.Sleep),
+        ("SNINativeMethodWrapper.", Primitive.Io),
+        ("System.Net.Sockets.Socket.", Primitive.Io),
+        ("System.Net.Sockets.NetworkStream.", Primitive.Io),
+        ("System.IO.FileStream.Read", Primitive.Io),
+        ("System.IO.FileStream.Write", Primitive.Io),
+        ("System.IO.__Error", Primitive.Io),
+        ("Win32Native.ReadFile", Primitive.Io),
+    ];
+
+    private static readonly (string Pattern, WaitKind Kind, string Description)[] Contexts =
+    [
+        // Idle workers waiting for work — noise, not a problem (makingitfaster.tips: idle
+        // Sitecore.Threading.ManagedThreadPool threads use no CPU)
+        ("Sitecore.Threading.Semaphore.P(", WaitKind.IdleWorker, "idle worker (Sitecore ManagedThreadPool)"),
+        ("Sitecore.Threading.ManagedThreadPool", WaitKind.IdleWorker, "idle worker (Sitecore ManagedThreadPool)"),
+        ("DedicatedThreadPoolPipeScheduler.RunWorkLoop", WaitKind.IdleWorker, "idle worker (StackExchange.Redis scheduler)"),
+
+        // Blocking on async code
+        ("System.Threading.Tasks.Task.Wait", WaitKind.SyncOverAsync, "async Task (.Result / .Wait)"),
+        ("System.Threading.Tasks.Task.InternalWait", WaitKind.SyncOverAsync, "async Task (.Result / .Wait)"),
+        ("System.Threading.Tasks.Task`1.get_Result", WaitKind.SyncOverAsync, "async Task (.Result / .Wait)"),
+        ("System.Threading.Tasks.Task`1.GetResultCore", WaitKind.SyncOverAsync, "async Task (.Result / .Wait)"),
+        ("System.Runtime.CompilerServices.TaskAwaiter", WaitKind.SyncOverAsync, "async Task (.GetAwaiter().GetResult())"),
+
+        // External dependencies
+        ("System.Data.SqlClient.", WaitKind.Dependency, "SQL Server (ADO.NET)"),
+        ("Microsoft.Data.SqlClient.", WaitKind.Dependency, "SQL Server (ADO.NET)"),
+        ("StackExchange.Redis.", WaitKind.Dependency, "Redis (StackExchange.Redis)"),
+        ("SolrNet.", WaitKind.Dependency, "Solr (SolrNet)"),
+        ("System.Net.HttpWebRequest", WaitKind.Dependency, "outbound HTTP"),
+        ("System.Net.Http.HttpClient", WaitKind.Dependency, "outbound HTTP"),
+        ("System.Net.WebClient", WaitKind.Dependency, "outbound HTTP"),
+        ("System.Net.ConnectStream", WaitKind.Dependency, "outbound HTTP"),
+        ("System.Net.Sockets.", WaitKind.Dependency, "network socket I/O"),
+        ("System.IO.FileStream", WaitKind.FileIo, "file I/O"),
+        ("System.IO.File.", WaitKind.FileIo, "file I/O"),
+    ];
+
+    /// <summary>Classifies what a thread is waiting on from its formatted stack frames (top first).</summary>
+    public static (WaitKind Kind, string? Description) ClassifyWait(IReadOnlyList<string> frames)
     {
-        foreach (var frame in frames)
+        var meaningful = frames.Where(IsMeaningful).ToList();
+        if (meaningful.Count == 0) return (WaitKind.None, null);
+
+        var primitive = Primitive.None;
+        foreach (var frame in meaningful.Take(PrimitiveSearchDepth))
         {
-            // Async blocking
-            if (frame.Contains("TaskAwaiter.GetResult") || frame.Contains("Task`1.get_Result") ||
-                frame.Contains("Task.Wait(") || frame.Contains("Task.WaitAll") || frame.Contains("Task.WaitAny"))
-                return "blocking async Task (.Result / .Wait) — causes thread-pool starvation";
+            foreach (var (pattern, kind) in Primitives)
+            {
+                if (frame.Contains(pattern, StringComparison.Ordinal)) { primitive = kind; break; }
+            }
+            if (primitive != Primitive.None) break;
+        }
 
-            // Monitor / lock
-            if (frame.Contains("Monitor.Wait(") || frame.Contains("Monitor.ObjWait"))
-                return "CLR Monitor.Wait — thread released the lock and is waiting for a pulse";
-            if (frame.Contains("Monitor.Enter(") || frame.Contains("Monitor.TryEnter(") ||
-                frame.Contains("Monitor.ReliableEnter"))
-                return "CLR Monitor.Enter — contended lock acquisition";
+        if (primitive == Primitive.None) return (WaitKind.None, null);
 
-            // SQL
-            if (frame.Contains("SqlCommand") || frame.Contains("SqlDataReader") ||
-                frame.Contains("SqlConnection.Open") || frame.Contains("TdsParser"))
-                return "SQL database I/O (ADO.NET / System.Data.SqlClient)";
+        // SemaphoreSlim.Wait is implemented with Monitor.Wait, so the Monitor frame is on top. A synchronous
+        // SemaphoreSlim.Wait right below it is a gate (often used as an async-friendly lock): treat it as one.
+        if (primitive == Primitive.Signal &&
+            meaningful.Take(PrimitiveSearchDepth).Any(f => f.Contains("System.Threading.SemaphoreSlim.Wait(", StringComparison.Ordinal)))
+            primitive = Primitive.SemaphoreGate;
 
-            // HTTP / web
-            if (frame.Contains("HttpWebRequest") || frame.Contains("HttpClient") ||
-                frame.Contains("WebClient") || frame.Contains("ConnectStream"))
-                return "outbound HTTP I/O";
+        if (primitive == Primitive.SemaphoreGate)
+        {
+            // An idle worker loop can use a semaphore to wait for work — that's not contention
+            foreach (var frame in meaningful.Take(ContextSearchDepth))
+            {
+                foreach (var (pattern, kind, description) in Contexts)
+                {
+                    if (kind == WaitKind.IdleWorker && frame.Contains(pattern, StringComparison.Ordinal))
+                        return (kind, description);
+                }
+            }
+            var gateSite = GetLockSite(frames);
+            return (WaitKind.LockContention, gateSite != null ? $"SemaphoreSlim.Wait in {gateSite}" : "SemaphoreSlim.Wait");
+        }
 
-            // Sockets / network
-            if (frame.Contains("Socket.Receive") || frame.Contains("Socket.Accept") ||
-                frame.Contains("Socket.Connect") || frame.Contains("NetworkStream"))
-                return "network socket I/O";
+        // A thread waiting to enter a lock is contending, whatever it was going to do with it
+        if (primitive == Primitive.LockEnter)
+        {
+            var site = GetLockSite(frames);
+            return (WaitKind.LockContention, site != null ? $"contended lock (Monitor.Enter) in {site}" : "contended lock (Monitor.Enter)");
+        }
 
-            // File I/O
-            if (frame.Contains("FileStream") || frame.Contains("StreamReader") ||
-                frame.Contains("File.ReadAll") || frame.Contains("BinaryReader"))
-                return "file I/O";
+        foreach (var frame in meaningful.Take(ContextSearchDepth))
+        {
+            foreach (var (pattern, kind, description) in Contexts)
+            {
+                if (frame.Contains(pattern, StringComparison.Ordinal))
+                    return (kind, description);
+            }
+        }
 
-            // WaitHandle family
-            if (frame.Contains("WaitHandle.WaitOne") || frame.Contains("WaitHandle.WaitAny") ||
-                frame.Contains("EventWaitHandle") || frame.Contains("ManualResetEvent") ||
-                frame.Contains("AutoResetEvent"))
-                return "OS wait handle (event / semaphore)";
+        return primitive switch
+        {
+            Primitive.Sleep => (WaitKind.Sleep, "Thread.Sleep"),
+            Primitive.Io => (WaitKind.Dependency, "I/O"),
+            _ => (WaitKind.Signal, "an event / semaphore / Monitor.Wait signal")
+        };
+    }
 
-            if (frame.Contains("SemaphoreSlim.Wait") || frame.Contains("Semaphore.WaitOne"))
-                return "semaphore";
-
-            if (frame.Contains("Thread.Sleep("))
-                return "Thread.Sleep";
-
-            if (frame.Contains("GC.WaitForFullGCComplete") || frame.Contains("GC.Collect("))
-                return "explicit GC.Collect / WaitForFullGC";
-
-            // ASP.NET / IIS
-            if (frame.Contains("HttpApplication.ExecuteStep") || frame.Contains("AspNetSynchronizationContext"))
-                return "ASP.NET request pipeline";
+    /// <summary>The method that called Monitor.Enter or SemaphoreSlim.Wait — i.e. where the contended lock is.</summary>
+    public static string? GetLockSite(IReadOnlyList<string> frames)
+    {
+        int lastMonitor = -1;
+        for (int i = 0; i < frames.Count && i < ContextSearchDepth; i++)
+        {
+            if (frames[i].Contains("System.Threading.Monitor.", StringComparison.Ordinal) ||
+                frames[i].Contains("System.Threading.SemaphoreSlim.", StringComparison.Ordinal) ||
+                frames[i].StartsWith("[JIT_MonEnter", StringComparison.Ordinal))
+                lastMonitor = i;
+            else if (lastMonitor >= 0 && IsMeaningful(frames[i]))
+                return frames[i];
         }
         return null;
     }
+
+    /// <summary>Kept for callers that only need the description.</summary>
+    internal static string? DetectBlockingFromFrames(IReadOnlyList<string> frames) => ClassifyWait(frames).Description;
+
+    private static bool IsMeaningful(string frame) =>
+        !frame.StartsWith("[frame @", StringComparison.Ordinal) &&
+        !frame.StartsWith("[NativeTransition]", StringComparison.Ordinal) &&
+        !frame.StartsWith("[GCFrame]", StringComparison.Ordinal) &&
+        !frame.StartsWith("[HelperMethod]", StringComparison.Ordinal) &&
+        !frame.StartsWith("[HelperMethodFrame", StringComparison.Ordinal);
 
     // ── Thread grouping ───────────────────────────────────────────────────────
 
     private static IReadOnlyList<ThreadGroup> BuildGroups(IReadOnlyList<ThreadInfo> threads)
     {
-        int total = threads.Count;
+        // Dead threads have no stack and say nothing about what the process is doing
+        var alive = threads.Where(t => t.IsAlive).ToList();
+        int total = alive.Count;
         if (total == 0) return [];
 
         // Fingerprint = top N non-runtime frames joined; empty string = no managed frames
-        var bySignature = threads
+        var bySignature = alive
             .GroupBy(t => BuildSignature(t.StackFrames))
             .OrderByDescending(g => g.Count())
             .Take(20)  // report top 20 patterns
@@ -168,7 +284,7 @@ public static class ThreadAnalyzer
             var sampleIds = g.Take(5).Select(t => t.OsThreadId).ToList();
             string? waitReason = hasNoManagedFrames
                 ? "idle or native (no managed frames decoded)"
-                : DetectBlockingFromFrames(representative);
+                : ClassifyWait(representative).Description;
 
             return new ThreadGroup(
                 ThreadCount: g.Count(),
@@ -182,11 +298,7 @@ public static class ThreadAnalyzer
 
     private static string BuildSignature(IReadOnlyList<string> frames)
     {
-        // Use the first GroupSignatureDepth frames that aren't pure runtime/OS transitions
-        var meaningful = frames
-            .Where(f => !f.StartsWith("[frame @") && !f.StartsWith("[NativeTransition]") &&
-                        !f.StartsWith("[GCFrame]") && !f.StartsWith("[HelperMethod]"))
-            .Take(GroupSignatureDepth);
+        var meaningful = frames.Where(IsMeaningful).Take(GroupSignatureDepth);
         return string.Join("|", meaningful);
     }
 
@@ -195,10 +307,10 @@ public static class ThreadAnalyzer
     private static string BuildStateString(ClrThread thread)
     {
         var parts = new List<string>();
-        if (thread.IsAlive) parts.Add("Alive");
+        parts.Add(thread.IsAlive ? "Alive" : "Dead");
         if (thread.IsGc) parts.Add("GC");
         if (thread.IsFinalizer) parts.Add("Finalizer");
         if (thread.LockCount > 0) parts.Add($"Locks:{thread.LockCount}");
-        return parts.Count > 0 ? string.Join("|", parts) : "Unknown";
+        return string.Join("|", parts);
     }
 }

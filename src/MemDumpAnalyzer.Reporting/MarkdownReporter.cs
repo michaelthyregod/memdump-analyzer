@@ -23,6 +23,13 @@ public static class MarkdownReporter
         sb.AppendLine($"| Health score | **{r.HealthScore}/100** |");
         sb.AppendLine();
 
+        if (!r.HeapWalkComplete)
+        {
+            sb.AppendLine("> ⚠ **Incomplete heap data:** the dump was captured while a garbage collection was running, so heap types, " +
+                          "duplicate strings and fragmentation come from the part of the heap that could be read.");
+            sb.AppendLine();
+        }
+
         sb.AppendLine("### Top Findings");
         sb.AppendLine();
         foreach (var f in r.Findings.Take(10))
@@ -52,7 +59,8 @@ public static class MarkdownReporter
         sb.AppendLine($"| Gen2 | {FormatBytes(r.GcStats.Gen2Bytes)} |");
         sb.AppendLine($"| LOH | {FormatBytes(r.GcStats.LohBytes)} |");
         sb.AppendLine($"| POH | {FormatBytes(r.GcStats.PohBytes)} |");
-        sb.AppendLine($"| LOH fragmentation | {r.GcStats.LohFragmentationPercent:F1}% |");
+        sb.AppendLine($"| LOH fragmentation | {r.GcStats.LohFragmentationPercent:F1}% ({FormatBytes(r.GcStats.LohFreeBytes)} free) |");
+        sb.AppendLine($"| Gen2 fragmentation | {r.GcStats.Gen2FragmentationPercent:F1}% ({FormatBytes(r.GcStats.Gen2FreeBytes)} free) |");
         sb.AppendLine();
 
         sb.AppendLine("---");
@@ -71,12 +79,35 @@ public static class MarkdownReporter
         sb.AppendLine();
         sb.AppendLine("## 4. Thread Analysis");
         sb.AppendLine();
-        sb.AppendLine($"Total threads: **{r.Threads.Count}**  ");
-        sb.AppendLine($"Blocked threads: **{r.Threads.Count(t => t.BlockingReason != null)}**");
+        var alive = r.Threads.Where(t => t.IsAlive).ToList();
+        sb.AppendLine($"Live threads: **{alive.Count}**  ");
+        sb.AppendLine($"Dead threads (not analyzed): **{r.Threads.Count - alive.Count}**  ");
+        sb.AppendLine($"Waiting/blocked threads: **{alive.Count(t => t.BlockingReason != null)}**");
+        if (r.ThreadPool is { } tp)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"Thread pool: active **{tp.ActiveWorkerThreads}**, idle **{tp.IdleWorkerThreads}**, min {tp.MinThreads}, max {tp.MaxThreads} | " +
+                          $"CPU at capture (system-wide): **{tp.CpuUtilization}%**");
+        }
         sb.AppendLine();
+
+        if (r.ThreadGroups.Count > 0)
+        {
+            sb.AppendLine("### Thread patterns");
+            sb.AppendLine();
+            sb.AppendLine("| Threads | % | Waiting on | Top frame |");
+            sb.AppendLine("|---:|---:|---|---|");
+            foreach (var g in r.ThreadGroups)
+            {
+                var topFrame = g.RepresentativeStack.FirstOrDefault(f => !f.StartsWith('[')) ?? g.RepresentativeStack.FirstOrDefault() ?? "";
+                sb.AppendLine($"| {g.ThreadCount:N0} | {g.Percentage:F1} | {Escape(g.WaitReason ?? "running")} | `{Escape(topFrame)}` |");
+            }
+            sb.AppendLine();
+        }
+
         sb.AppendLine("| OS TID | Managed TID | State | Exception |");
         sb.AppendLine("|---:|---:|---|---|");
-        foreach (var t in r.Threads.Take(50))
+        foreach (var t in alive.Take(50))
         {
             sb.AppendLine($"| {t.OsThreadId} | {t.ManagedThreadId} | {t.State} | {Escape(t.CurrentException ?? "")} |");
         }
@@ -86,11 +117,11 @@ public static class MarkdownReporter
         sb.AppendLine();
         sb.AppendLine("## 5. GC Health");
         sb.AppendLine();
-        sb.AppendLine("| Segment | Kind | Committed | Fill % |");
-        sb.AppendLine("|---:|---|---:|---:|");
+        sb.AppendLine("| Kind | Committed | Free objects | Fill % |");
+        sb.AppendLine("|---|---:|---:|---:|");
         foreach (var seg in r.GcStats.Segments.Take(20))
         {
-            sb.AppendLine($"| Gen{seg.Generation} | {seg.Kind} | {FormatBytes(seg.CommittedBytes)} | {seg.FillRatio * 100:F1}% |");
+            sb.AppendLine($"| {seg.Kind} | {FormatBytes(seg.CommittedBytes)} | {FormatBytes(seg.FreeBytes)} | {seg.FillRatio * 100:F1}% |");
         }
         sb.AppendLine();
 

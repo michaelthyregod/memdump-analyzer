@@ -164,6 +164,11 @@ public static class AnalyzeCommand
         else
             AnsiConsole.Write(table);
 
+        if (!r.HeapWalkComplete)
+            AnsiConsole.MarkupLine("[yellow]⚠ Dump captured mid-GC: heap statistics are partial.[/]");
+        if (r.ThreadPool is { } tp)
+            AnsiConsole.MarkupLine($"Threads: {r.Threads.Count(t => t.IsAlive)} live  |  Thread pool: {tp.ActiveWorkerThreads} active, {tp.IdleWorkerThreads} idle  |  CPU {tp.CpuUtilization}%");
+
         string scoreColor = r.HealthScore >= 70 ? "green" : r.HealthScore >= 40 ? "yellow" : "red";
         AnsiConsole.MarkupLine($"\nHealth score: [{scoreColor} bold]{r.HealthScore}/100[/]");
     }

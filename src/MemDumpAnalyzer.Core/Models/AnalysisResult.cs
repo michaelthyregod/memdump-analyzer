@@ -34,5 +34,10 @@ public record AnalysisResult(
 
     // Findings
     IReadOnlyList<Finding> Findings,
-    int HealthScore
+    int HealthScore,
+
+    // False when the dump was captured mid-GC (ClrMD CanWalkHeap == false): heap types, strings and
+    // free-space numbers then come from a best-effort walk and are incomplete.
+    bool HeapWalkComplete = true,
+    ThreadPoolStats? ThreadPool = null
 );

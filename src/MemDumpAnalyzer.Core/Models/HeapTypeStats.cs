@@ -5,5 +5,5 @@ public record HeapTypeStats(
     long InstanceCount,
     long TotalSizeBytes,
     long OwnSizeBytes,
-    int Generation
+    int Generation      // generation holding most of this type's bytes (3 = LOH/POH/frozen, -1 = unknown)
 );

@@ -3,6 +3,11 @@ using MemDumpAnalyzer.Core.Models;
 
 namespace MemDumpAnalyzer.Core.Analysis;
 
+/// <summary>
+/// Collects GC-root samples for the largest types. A single dump cannot prove a leak — that takes
+/// two dumps a minute or so apart and the <c>diff</c> command — so the results are evidence attached
+/// to other findings, not findings of their own.
+/// </summary>
 public static class LeakDetector
 {
     private const int MaxSuspects = 20;
@@ -10,14 +15,10 @@ public static class LeakDetector
 
     public static IReadOnlyList<LeakSuspect> Analyze(
         ClrRuntime runtime,
+        HeapWalkResult walk,
         IReadOnlyList<HeapTypeStats> heapStats,
         CancellationToken cancellationToken = default)
     {
-        var heap = runtime.Heap;
-        if (!heap.CanWalkHeap)
-            return [];
-
-        // Focus on large types
         var suspects = heapStats
             .Where(t => t.TotalSizeBytes > 1024 * 1024) // >1 MB
             .Take(MaxSuspects)
@@ -26,29 +27,11 @@ public static class LeakDetector
         if (suspects.Count == 0)
             return [];
 
-        var suspectTypeNames = suspects.Select(s => s.TypeName).ToHashSet();
-
-        // Sample addresses per type
-        var sampleAddresses = new Dictionary<string, List<ulong>>();
-        foreach (var obj in heap.EnumerateObjects())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (obj.IsNull || !obj.IsValid || obj.Type == null) continue;
-            var name = obj.Type.Name ?? string.Empty;
-            if (!suspectTypeNames.Contains(name)) continue;
-
-            if (!sampleAddresses.TryGetValue(name, out var list))
-                sampleAddresses[name] = list = [];
-
-            if (list.Count < 3)
-                list.Add(obj.Address);
-        }
-
-        // Build root lookup once — expensive on large heaps, limit to small set
+        // Map directly-rooted objects to their root kind (an object is only matched when it is itself a root)
         var rootsByObject = new Dictionary<ulong, string>();
         try
         {
-            foreach (var root in heap.EnumerateRoots())
+            foreach (var root in runtime.Heap.EnumerateRoots())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var addr = root.Object.Address;
@@ -62,7 +45,7 @@ public static class LeakDetector
         }
         catch
         {
-            // Root enumeration can fail on corrupt dumps; proceed without roots
+            // Root enumeration can fail on corrupt or mid-GC dumps; proceed without roots
         }
 
         var results = new List<LeakSuspect>();
@@ -71,9 +54,9 @@ public static class LeakDetector
         {
             var rootPaths = new List<string>();
 
-            if (sampleAddresses.TryGetValue(suspect.TypeName, out var addresses))
+            if (walk.Types.TryGetValue(suspect.TypeName, out var acc))
             {
-                foreach (var addr in addresses)
+                foreach (var addr in acc.Samples)
                 {
                     if (rootsByObject.TryGetValue(addr, out var rootPath))
                         rootPaths.Add($"{rootPath} → {addr:x16}");

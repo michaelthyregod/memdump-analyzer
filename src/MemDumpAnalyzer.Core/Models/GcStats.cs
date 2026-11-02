@@ -5,7 +5,8 @@ public record GcSegmentInfo(
     string Kind,
     long CommittedBytes,
     long ReservedBytes,
-    double FillRatio
+    double FillRatio,       // (allocated object range − free objects) / committed
+    long FreeBytes = 0      // bytes in free objects (fragmentation) found by the heap walk
 );
 
 public record GcStats(
@@ -15,6 +16,9 @@ public record GcStats(
     long Gen2Bytes,
     long LohBytes,
     long PohBytes,
-    double LohFragmentationPercent,
-    IReadOnlyList<GcSegmentInfo> Segments
+    double LohFragmentationPercent,     // LOH free-object bytes / LOH allocated range
+    IReadOnlyList<GcSegmentInfo> Segments,
+    long LohFreeBytes = 0,
+    long Gen2FreeBytes = 0,
+    double Gen2FragmentationPercent = 0 // Gen2 free-object bytes / Gen2 allocated range
 );

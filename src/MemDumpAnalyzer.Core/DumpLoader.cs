@@ -14,13 +14,16 @@ public static class DumpLoader
         public ClrRuntime Runtime { get; }
         public string ClrVersion { get; }
         public string AppDomainName { get; }
+        /// <summary>When the dump was written, from the minidump header (null for non-minidump formats).</summary>
+        public DateTime? CaptureTimeUtc { get; }
 
-        internal LoadedDump(DataTarget dataTarget, ClrRuntime runtime, string clrVersion, string appDomainName)
+        internal LoadedDump(DataTarget dataTarget, ClrRuntime runtime, string clrVersion, string appDomainName, DateTime? captureTimeUtc)
         {
             DataTarget = dataTarget;
             Runtime = runtime;
             ClrVersion = clrVersion;
             AppDomainName = appDomainName;
+            CaptureTimeUtc = captureTimeUtc;
         }
 
         public void Dispose()
@@ -72,6 +75,28 @@ public static class DumpLoader
         var clrVersion = clrInfo.Version.ToString();
         var appDomainName = runtime.AppDomains.FirstOrDefault()?.Name ?? "Unknown";
 
-        return new LoadedDump(dataTarget, runtime, clrVersion, appDomainName);
+        return new LoadedDump(dataTarget, runtime, clrVersion, appDomainName, ReadMinidumpTimestamp(dumpPath));
+    }
+
+    /// <summary>
+    /// Reads TimeDateStamp from the MINIDUMP_HEADER (offset 20, seconds since 1970 UTC) — the time the
+    /// dump was written. The file's own timestamp changes when the dump is copied, so it's only a fallback.
+    /// </summary>
+    public static DateTime? ReadMinidumpTimestamp(string dumpPath)
+    {
+        try
+        {
+            Span<byte> header = stackalloc byte[24];
+            using var fs = File.OpenRead(dumpPath);
+            if (fs.Read(header) < header.Length) return null;
+            if (header[0] != (byte)'M' || header[1] != (byte)'D' || header[2] != (byte)'M' || header[3] != (byte)'P')
+                return null;
+            uint seconds = BitConverter.ToUInt32(header[20..]);
+            return seconds == 0 ? null : DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
     }
 }
