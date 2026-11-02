@@ -47,6 +47,7 @@ for a complete example.
   "logoHeightMm": 12,        // 5–60; width follows the logo's own proportions (never distorted),
                              // with half the height as clear space
   "headingWeight": 700,      // 400, 600 or 700
+  "headingCase": "title",    // "title" (Top Memory Consumers) or "sentence" (Top memory consumers)
   "colors": { "primary": "#1f4e5f" },
   "fonts": {
     "body":    [ "ACME Sans", "Arial" ],

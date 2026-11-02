@@ -19,7 +19,7 @@ public static class MarkdownReporter
             sb.AppendLine($"_{Escape(skin.CompanyName)}_");
             sb.AppendLine();
         }
-        sb.AppendLine("## 1. Executive Summary");
+        sb.AppendLine($"## 1. {skin.Heading("executive_summary")}");
         sb.AppendLine();
         sb.AppendLine($"| Field | Value |");
         sb.AppendLine($"|---|---|");
@@ -40,7 +40,7 @@ public static class MarkdownReporter
             sb.AppendLine();
         }
 
-        sb.AppendLine("### Top Findings");
+        sb.AppendLine($"### {skin.Heading("top_findings")}");
         sb.AppendLine();
         foreach (var f in r.Findings.Take(10))
         {
@@ -59,7 +59,7 @@ public static class MarkdownReporter
 
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine("## 2. Memory Overview");
+        sb.AppendLine($"## 2. {skin.Heading("memory_overview")}");
         sb.AppendLine();
         sb.AppendLine($"| Heap Region | Size |");
         sb.AppendLine($"|---|---|");
@@ -75,7 +75,7 @@ public static class MarkdownReporter
 
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine("## 3. Top Memory Consumers");
+        sb.AppendLine($"## 3. {skin.Heading("top_memory_consumers")}");
         sb.AppendLine();
         sb.AppendLine("| Type | Instances | Total Size | Gen |");
         sb.AppendLine("|---|---:|---:|---:|");
@@ -87,7 +87,7 @@ public static class MarkdownReporter
 
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine("## 4. Thread Analysis");
+        sb.AppendLine($"## 4. {skin.Heading("thread_analysis")}");
         sb.AppendLine();
         var alive = r.Threads.Where(t => t.IsAlive).ToList();
         sb.AppendLine($"Live threads: **{alive.Count}**  ");
@@ -103,7 +103,7 @@ public static class MarkdownReporter
 
         if (r.ThreadGroups.Count > 0)
         {
-            sb.AppendLine("### Thread patterns");
+            sb.AppendLine($"### {skin.Heading("thread_patterns")}");
             sb.AppendLine();
             sb.AppendLine("| Threads | % | Waiting on | Top frame |");
             sb.AppendLine("|---:|---:|---|---|");
@@ -125,7 +125,7 @@ public static class MarkdownReporter
 
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine("## 5. GC Health");
+        sb.AppendLine($"## 5. {skin.Heading("gc_health")}");
         sb.AppendLine();
         sb.AppendLine("| Kind | Committed | Free objects | Fill % |");
         sb.AppendLine("|---|---:|---:|---:|");
@@ -137,7 +137,7 @@ public static class MarkdownReporter
 
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine("## 6. Findings Detail");
+        sb.AppendLine($"## 6. {skin.Heading("findings_detail")}");
         sb.AppendLine();
         foreach (var f in r.Findings)
         {
@@ -178,7 +178,7 @@ public static class MarkdownReporter
         {
             sb.AppendLine("---");
             sb.AppendLine();
-            sb.AppendLine("## 7. Duplicate Strings");
+            sb.AppendLine($"## 7. {skin.Heading("duplicate_strings")}");
             sb.AppendLine();
             sb.AppendLine("| Value (truncated) | Instances | Wasted |");
             sb.AppendLine("|---|---:|---:|");
@@ -193,7 +193,7 @@ public static class MarkdownReporter
         {
             sb.AppendLine("---");
             sb.AppendLine();
-            sb.AppendLine("## 8. Application Code Hotspots");
+            sb.AppendLine($"## 8. {skin.Heading("application_code_hotspots")}");
             sb.AppendLine();
             sb.AppendLine($"Assemblies found in thread stacks that are **not suppressed** by the known-assembly filter " +
                           $"({r.KnownAssemblyFilters.Count} rule{(r.KnownAssemblyFilters.Count == 1 ? "" : "s")} active — " +

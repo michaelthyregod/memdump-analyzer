@@ -113,7 +113,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 {{ end }}
 
 <!-- Findings -->
-<h2>Findings</h2>
+<h2>{{ headings.findings | html.escape }}</h2>
 <div class="findings">
 {{ for f in r.findings }}
   <div class="finding {{ severity_class f.severity }}">
@@ -134,7 +134,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </div>
 
 <!-- Memory Overview -->
-<h2>Memory Overview</h2>
+<h2>{{ headings.memory_overview | html.escape }}</h2>
 <div class="chart-wrap">
 {{ max_bytes = r.gc_stats.total_heap_bytes > 0 ? r.gc_stats.total_heap_bytes : 1 }}
 {{ for row in [['Gen0', r.gc_stats.gen0_bytes], ['Gen1', r.gc_stats.gen1_bytes], ['Gen2', r.gc_stats.gen2_bytes], ['LOH', r.gc_stats.loh_bytes], ['POH', r.gc_stats.poh_bytes]] }}
@@ -148,7 +148,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </div>
 
 <!-- Top Memory Consumers -->
-<h2>Top Memory Consumers</h2>
+<h2>{{ headings.top_memory_consumers | html.escape }}</h2>
 {{ top_size = (r.heap_types.size > 0 && r.heap_types[0].total_size_bytes > 0) ? r.heap_types[0].total_size_bytes : 1 }}
 <div class="chart-wrap" style="margin-bottom:1rem">
 {{ for t in r.heap_types | array.limit 15 }}
@@ -172,14 +172,14 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </details>
 
 <!-- Thread Analysis -->
-<h2>Thread Analysis</h2>
+<h2>{{ headings.thread_analysis | html.escape }}</h2>
 <div class="section" style="padding:1rem">
   <p>Live threads: <strong>{{ alive_thread_count }}</strong> &nbsp;|&nbsp; Dead (not analyzed): <strong>{{ r.threads.size - alive_thread_count }}</strong> &nbsp;|&nbsp; Waiting/blocked: <strong>{{ blocked_thread_count }}</strong></p>
   {{ if r.thread_pool }}
   <p>Thread pool: active <strong>{{ r.thread_pool.active_worker_threads }}</strong>, idle <strong>{{ r.thread_pool.idle_worker_threads }}</strong>, min {{ r.thread_pool.min_threads }}, max {{ r.thread_pool.max_threads }} &nbsp;|&nbsp; CPU at capture (system-wide): <strong>{{ r.thread_pool.cpu_utilization }}%</strong></p>
   {{ end }}
 </div>
-<h3>Thread patterns (live threads grouped by top stack frames)</h3>
+<h3>{{ headings.thread_patterns | html.escape }} (live threads grouped by top stack frames)</h3>
 <table>
   <thead><tr><th style="text-align:right">Threads</th><th style="text-align:right">%</th><th>Waiting on</th><th>Representative stack (top 12)</th></tr></thead>
   <tbody>
@@ -213,7 +213,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </details>
 
 <!-- GC Health -->
-<h2>GC Health</h2>
+<h2>{{ headings.gc_health | html.escape }}</h2>
 <table>
   <thead><tr><th>Kind</th><th>Committed</th><th>Reserved</th><th>Free objects</th><th>Fill %</th></tr></thead>
   <tbody>
@@ -231,7 +231,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 
 <!-- Duplicate Strings -->
 {{ if r.duplicate_strings.size > 0 }}
-<h2>Duplicate Strings</h2>
+<h2>{{ headings.duplicate_strings | html.escape }}</h2>
 <details>
   <summary>{{ r.duplicate_strings.size }} duplicate string groups</summary>
   <table>
@@ -247,7 +247,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 
 <!-- Application Code Hotspots -->
 {{ if r.application_hotspots.size > 0 }}
-<h2>Application Code Hotspots</h2>
+<h2>{{ headings.application_code_hotspots | html.escape }}</h2>
 <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
   Assemblies found in thread stacks that are <strong>not suppressed</strong> by the known-assembly filter
   ({{ r.known_assembly_filters.size }} rule{{ if r.known_assembly_filters.size != 1 }}s{{ end }} active —
@@ -280,7 +280,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 {{ end }}
 
 <!-- Findings Detail -->
-<h2>Findings Detail</h2>
+<h2>{{ headings.findings_detail | html.escape }}</h2>
 {{ for f in r.findings }}
 <div class="finding {{ severity_class f.severity }}" style="margin:.75rem 0">
   <h3><span class="badge {{ severity_class f.severity }}">{{ severity_label f.severity }}</span>{{ f.id | html.escape }}</h3>

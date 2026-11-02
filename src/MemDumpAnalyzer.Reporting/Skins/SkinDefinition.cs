@@ -25,6 +25,9 @@ public sealed class SkinDefinition
     /// <summary>Font weight for headings: 400 (regular), 600 (semibold) or 700 (bold, the default).</summary>
     public int? HeadingWeight { get; set; }
 
+    /// <summary>"title" (default, "Top Memory Consumers") or "sentence" ("Top memory consumers").</summary>
+    public string? HeadingCase { get; set; }
+
     /// <summary>Colour tokens (see <see cref="SkinColors.Keys"/>) as #RRGGBB.</summary>
     public Dictionary<string, string>? Colors { get; set; }
 

@@ -39,18 +39,18 @@ public static class DiffReporter
         if (skin.PreparedBy != null) sb.AppendLine($"<p><strong>Prepared by:</strong> {E(skin.PreparedBy)}</p>");
         sb.AppendLine($"<p>Heap delta: <strong class=grow>{FormatBytes(diff.HeapDeltaBytes)}</strong> | Thread delta: <strong>{diff.ThreadDelta:+#;-#;0}</strong></p>");
 
-        sb.AppendLine("<h2>Findings</h2>");
+        sb.AppendLine($"<h2>{E(skin.Heading("findings"))}</h2>");
         foreach (var f in diff.Findings)
             sb.AppendLine($"<div class=\"finding\"><strong>[{f.Severity}]</strong> {E(f.Summary)}: {E(f.Explanation)}</div>");
         if (diff.Findings.Count == 0) sb.AppendLine("<p>No findings.</p>");
 
-        sb.AppendLine($"<h2>Growing Types (Top {rows})</h2>");
+        sb.AppendLine($"<h2>{E(skin.Heading("growing_types"))} ({(skin.HeadingCase == HeadingCase.Title ? "Top" : "top")} {rows})</h2>");
         sb.AppendLine("<table><tr><th>Type</th><th>Baseline Count</th><th>Problem Count</th><th>Delta</th><th>Size Delta</th></tr>");
         foreach (var t in diff.GrowingTypes.Take(rows))
             sb.AppendLine($"<tr><td><code>{E(t.TypeName)}</code></td><td>{t.BaselineCount:N0}</td><td>{t.ProblemCount:N0}</td><td class=grow>{t.CountDelta:+#,0;-#,0;0}</td><td class=grow>{(t.SizeDeltaBytes >= 0 ? "+" : "")}{FormatBytes(t.SizeDeltaBytes)}</td></tr>");
         sb.AppendLine("</table>");
 
-        sb.AppendLine("<h2>New Types</h2><ul>");
+        sb.AppendLine($"<h2>{E(skin.Heading("new_types"))}</h2><ul>");
         foreach (var t in diff.NewTypes.Take(rows))
             sb.AppendLine($"<li><code>{E(t)}</code></li>");
         sb.AppendLine("</ul>");
@@ -73,21 +73,21 @@ public static class DiffReporter
         if (skin.PreparedBy != null) { sb.AppendLine($"**Prepared by:** {skin.PreparedBy}  "); }
         sb.AppendLine($"Heap delta: **{FormatBytes(diff.HeapDeltaBytes)}** | Thread delta: **{diff.ThreadDelta:+#;-#;0}**");
         sb.AppendLine();
-        sb.AppendLine("## Findings");
+        sb.AppendLine($"## {skin.Heading("findings")}");
         sb.AppendLine();
         foreach (var f in diff.Findings)
             sb.AppendLine($"- **[{f.Severity}]** {f.Summary}: {f.Explanation}");
         if (diff.Findings.Count == 0)
             sb.AppendLine("No findings.");
         sb.AppendLine();
-        sb.AppendLine("## Growing Types");
+        sb.AppendLine($"## {skin.Heading("growing_types")}");
         sb.AppendLine();
         sb.AppendLine("| Type | Baseline | Problem | Δ Count | Δ Size |");
         sb.AppendLine("|---|---:|---:|---:|---:|");
         foreach (var t in diff.GrowingTypes.Take(rows))
             sb.AppendLine($"| `{Md(t.TypeName)}` | {t.BaselineCount:N0} | {t.ProblemCount:N0} | {t.CountDelta:+#,0;-#,0;0} | {(t.SizeDeltaBytes >= 0 ? "+" : "")}{FormatBytes(t.SizeDeltaBytes)} |");
         sb.AppendLine();
-        sb.AppendLine("## New Types");
+        sb.AppendLine($"## {skin.Heading("new_types")}");
         sb.AppendLine();
         foreach (var t in diff.NewTypes.Take(rows))
             sb.AppendLine($"- `{t}`");

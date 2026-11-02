@@ -154,6 +154,16 @@ public static partial class SkinLoader
             warnings.Add($"headingWeight {headingWeight} is not 400, 600 or 700; using 700.");
             headingWeight = 700;
         }
+        var headingCase = HeadingCase.Title;
+        switch (d.HeadingCase?.Trim().ToLowerInvariant())
+        {
+            case null or "" or "title": break;
+            case "sentence": headingCase = HeadingCase.Sentence; break;
+            default:
+                warnings.Add($"headingCase '{d.HeadingCase}' is not 'title' or 'sentence'; using title.");
+                break;
+        }
+
         double logoHeight = d.LogoHeightMm ?? 12;
         if (logoHeight is < 5 or > 60)
         {
@@ -183,6 +193,7 @@ public static partial class SkinLoader
             Logo = logo,
             LogoHeightMm = logoHeight,
             HeadingWeight = headingWeight,
+            HeadingCase = headingCase,
             FontLicense = d.FontLicense,
             Warnings = warnings
         };

@@ -62,7 +62,7 @@ public static class PdfReporter
                     col.Spacing(8);
 
                     // Executive summary
-                    col.Item().Text("1. Executive Summary").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                    col.Item().Text($"1. {skin.Heading("executive_summary")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
                     col.Item().Table(t =>
                     {
                         t.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
@@ -78,7 +78,7 @@ public static class PdfReporter
                     });
 
                     // Findings
-                    col.Item().Text("2. Findings").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                    col.Item().Text($"2. {skin.Heading("findings")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
                     foreach (var f in r.Findings.Take(15))
                     {
                         col.Item().Background(SeverityBackground(skin, f.Severity)).BorderLeft(3).BorderColor(SeverityColor(skin, f.Severity)).Padding(6).Column(fc =>
@@ -101,7 +101,7 @@ public static class PdfReporter
                     }
 
                     // Memory overview
-                    col.Item().Text("3. Memory Overview").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                    col.Item().Text($"3. {skin.Heading("memory_overview")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
                     col.Item().Table(t =>
                     {
                         t.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
@@ -115,7 +115,7 @@ public static class PdfReporter
                     });
 
                     // Top consumers
-                    col.Item().Text("4. Top Memory Consumers").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                    col.Item().Text($"4. {skin.Heading("top_memory_consumers")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
                     col.Item().Table(t =>
                     {
                         t.ColumnsDefinition(c =>
@@ -141,7 +141,7 @@ public static class PdfReporter
                     // Application hotspots
                     if (r.ApplicationHotspots.Count > 0)
                     {
-                        col.Item().Text("5. Application Code Hotspots").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                        col.Item().Text($"5. {skin.Heading("application_code_hotspots")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
                         col.Item().Text(
                             $"Assemblies in thread stacks not matching any of the {r.KnownAssemblyFilters.Count} known-assembly filter prefix(es). " +
                             "These are likely your own code contributing to the problems above.")
@@ -177,7 +177,7 @@ public static class PdfReporter
                     }
 
                     // Threads
-                    col.Item().Text("6. Thread Summary").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                    col.Item().Text($"6. {skin.Heading("thread_summary")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
                     var alive = r.Threads.Where(t => t.IsAlive).ToList();
                     col.Item().Text($"Live: {alive.Count}  |  Dead (not analyzed): {r.Threads.Count - alive.Count}  |  Waiting/blocked: {alive.Count(t => t.BlockingReason != null)}");
                     if (r.ThreadPool is { } tp)

@@ -110,6 +110,50 @@ public class SkinTests : IDisposable
     }
 
     [Fact]
+    public void HeadingCase_DefaultsToTitleAndWarnsOnUnknownValue()
+    {
+        Assert.Equal(HeadingCase.Title, Skin.Default.HeadingCase);
+
+        var skin = SkinLoader.Load(WriteSkin("""{ "headingCase": "shouting" }"""));
+
+        Assert.Equal(HeadingCase.Title, skin.HeadingCase);
+        Assert.Contains(skin.Warnings, w => w.Contains("shouting"));
+    }
+
+    [Fact]
+    public void HeadingCase_Sentence_AppliesToEveryReport()
+    {
+        var skin = SkinLoader.Load(WriteSkin("""{ "headingCase": "sentence" }"""));
+        var result = Result();
+
+        var html = HtmlReporter.Render(result, skin);
+        var md = MarkdownReporter.Render(result, skin);
+        var diff = new DiffResult(0, 0, 0, 0, 0, 0, [], [], [], [], []);
+        var diffHtml = DiffReporter.RenderHtml(diff, "a.dmp", "b.dmp", 10, skin);
+        var diffMd = DiffReporter.RenderMarkdown(diff, "a.dmp", "b.dmp", 10, skin);
+
+        Assert.Contains("<h2>Top memory consumers</h2>", html);
+        Assert.Contains("<h2>GC health</h2>", html);                // acronym keeps its capitals
+        Assert.DoesNotContain(">Top Memory Consumers<", html);   // (the template's HTML comments may keep title case)
+        Assert.Contains("## 3. Top memory consumers", md);
+        Assert.Contains("## 1. Executive summary", md);
+        Assert.Contains("<h2>Growing types (top 10)</h2>", diffHtml);
+        Assert.Contains("## New types", diffMd);
+    }
+
+    [Fact]
+    public void HeadingCase_EveryHeadingHasBothForms()
+    {
+        foreach (var key in ReportHeadings.Keys)
+        {
+            var title = ReportHeadings.Get(key, HeadingCase.Title);
+            var sentence = ReportHeadings.Get(key, HeadingCase.Sentence);
+            Assert.Equal(title, sentence, StringComparer.OrdinalIgnoreCase);   // same words, only the case differs
+            Assert.True(char.IsUpper(sentence[0]), key);
+        }
+    }
+
+    [Fact]
     public void Load_UnknownSkin_Throws()
     {
         var ex = Assert.Throws<FileNotFoundException>(() => SkinLoader.Load(Path.Combine(_dir, "nope")));

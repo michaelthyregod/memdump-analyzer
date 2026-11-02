@@ -42,6 +42,11 @@ public static class HtmlReporter
             ["skin_logo"] = skin.Logo?.DataUri
         };
 
+        var headings = new ScriptObject();
+        foreach (var key in ReportHeadings.Keys)
+            headings[key] = skin.Heading(key);
+        scriptObj["headings"] = headings;
+
         scriptObj.Import("format_bytes", new Func<long, string>(FormatBytes));
         scriptObj.Import("severity_class", new Func<Severity, string>(s => s switch
         {

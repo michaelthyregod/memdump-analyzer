@@ -76,6 +76,11 @@ public sealed class Skin
 
     /// <summary>400, 600 or 700.</summary>
     public int HeadingWeight { get; init; } = 700;
+
+    public HeadingCase HeadingCase { get; init; } = HeadingCase.Title;
+
+    /// <summary>A report section heading in this skin's case (see <see cref="ReportHeadings"/>).</summary>
+    public string Heading(string key) => ReportHeadings.Get(key, HeadingCase);
     public string? FontLicense { get; init; }
 
     /// <summary>Problems found while loading (missing files, bad colours…). The skin still works.</summary>
@@ -89,7 +94,7 @@ public sealed class Skin
             Name = Name, DisplayName = DisplayName, ReportTitle = ReportTitle, CompanyName = CompanyName,
             PreparedBy = PreparedBy, PreparedFor = preparedFor, Footer = Footer, Colors = Colors,
             BodyFonts = BodyFonts, HeadingFonts = HeadingFonts, MonoFonts = MonoFonts, FontFaces = FontFaces,
-            Logo = Logo, LogoHeightMm = LogoHeightMm, HeadingWeight = HeadingWeight, FontLicense = FontLicense, Warnings = Warnings
+            Logo = Logo, LogoHeightMm = LogoHeightMm, HeadingWeight = HeadingWeight, HeadingCase = HeadingCase, FontLicense = FontLicense, Warnings = Warnings
         };
 
     /// <summary>Footer line used by every report.</summary>

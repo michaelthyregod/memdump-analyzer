@@ -21,5 +21,3 @@ Open decisions and follow-ups. Move an item to a GitHub issue when work on it st
 ## Follow-ups
 
 - Re-enable the GitHub Actions workflow (disabled manually since March 2026), then run it on `main`.
-- Section headings are in title case ("Top Memory Consumers"); some brand guides ask for sentence
-  case. Consider sentence case for all reports, or a skin option.
