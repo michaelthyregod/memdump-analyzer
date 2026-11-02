@@ -41,7 +41,7 @@ public static class PdfReporter
                             // Width from the logo's own proportions — never distorted; half the height as clear space
                             float h = (float)skin.LogoHeightMm * MmToPt;
                             var logoBox = row.ConstantItem(h * (float)logo.AspectRatio + h / 2).PaddingRight(h / 2).Height(h);
-                            if (logo.IsSvg) logoBox.Svg(System.Text.Encoding.UTF8.GetString(logo.Data));
+                            if (logo.IsSvg) logoBox.Svg(SvgStyleInliner.Inline(System.Text.Encoding.UTF8.GetString(logo.Data)));   // CSS-class colours → attributes (QuestPDF ignores <style>)
                             else logoBox.Image(logo.Data);
                         }
                         row.RelativeItem().Column(title =>

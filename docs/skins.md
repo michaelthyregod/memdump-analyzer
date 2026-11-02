@@ -53,7 +53,7 @@ for a complete example.
     "preparedFor": "…",                            // usually set per report with --prepared-for
     "footer": "ACME"                               // "memdump-analyzer" is always appended
   },
-  "logo": "logo.svg",
+  "logo": "logo.svg",         // SVG (colours as attributes or CSS classes, e.g. an Illustrator export), PNG or JPG
   "logoHeightMm": 12,        // 5–60; width follows the logo's own proportions (never distorted),
                              // with half the height as clear space
   "headingWeight": 700,      // 400, 600 or 700
