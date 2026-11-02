@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Scriban;
 using Scriban.Runtime;
 using MemDumpAnalyzer.Core.Models;
+using MemDumpAnalyzer.Reporting.Skins;
 
 namespace MemDumpAnalyzer.Reporting;
 
@@ -14,8 +15,9 @@ public static class HtmlReporter
     // and the model types (MemDumpAnalyzer.Core) are preserved via ILLink.Descriptors.xml.
     [UnconditionalSuppressMessage("Trimming", "IL2026",
         Justification = "Delegates reference statically-rooted methods; model assembly is preserved by ILLink.Descriptors.xml.")]
-    public static string Render(AnalysisResult result)
+    public static string Render(AnalysisResult result, Skin? skin = null)
     {
+        skin ??= Skin.Default;
         var template = Template.Parse(TemplateSource);
         if (template.HasErrors)
             throw new InvalidOperationException($"Template parse error: {string.Join("; ", template.Messages)}");
@@ -28,7 +30,16 @@ public static class HtmlReporter
             ["generated_utc"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture),
             ["alive_threads"] = aliveThreads,
             ["alive_thread_count"] = aliveThreads.Count,
-            ["blocked_thread_count"] = aliveThreads.Count(t => t.BlockingReason != null)
+            ["blocked_thread_count"] = aliveThreads.Count(t => t.BlockingReason != null),
+
+            // Skin: plain strings only, so Scriban needs no reflection over the skin types
+            ["skin_css"] = SkinCss.Build(skin),
+            ["skin_title"] = skin.ReportTitle,
+            ["skin_company"] = skin.CompanyName,
+            ["skin_prepared_for"] = skin.PreparedFor,
+            ["skin_prepared_by"] = skin.PreparedBy,
+            ["skin_footer"] = skin.FooterLine,
+            ["skin_logo"] = skin.Logo?.DataUri
         };
 
         scriptObj.Import("format_bytes", new Func<long, string>(FormatBytes));
@@ -48,8 +59,8 @@ public static class HtmlReporter
         return template.Render(context);
     }
 
-    public static async Task WriteAsync(AnalysisResult result, string outputPath, CancellationToken cancellationToken = default)
-        => await File.WriteAllTextAsync(outputPath, Render(result), cancellationToken);
+    public static async Task WriteAsync(AnalysisResult result, string outputPath, CancellationToken cancellationToken = default, Skin? skin = null)
+        => await File.WriteAllTextAsync(outputPath, Render(result, skin), cancellationToken);
 
     internal static string FormatBytes(long bytes)
     {

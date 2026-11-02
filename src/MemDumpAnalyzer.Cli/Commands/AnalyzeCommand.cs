@@ -29,12 +29,15 @@ public static class AnalyzeCommand
                           "Also auto-detected as 'known-assemblies.txt' in the current directory."
         };
 
+        var skinOptions = new SkinOptions();
+
         var cmd = new Command("analyze", "Analyze a single memory dump");
         cmd.Add(dumpArg);
         cmd.Add(outputOpt);
         cmd.Add(formatOpt);
         cmd.Add(topOpt);
         cmd.Add(knownAssembliesOpt);
+        skinOptions.AddTo(cmd);
 
         cmd.SetAction(async (parseResult, cancellationToken) =>
         {
@@ -58,6 +61,8 @@ public static class AnalyzeCommand
             outputDir.Create();
 
             AnsiConsole.MarkupLine($"[bold blue]memdump-analyzer[/] — analyzing [yellow]{Markup.Escape(dumpFile.Name)}[/]");
+            var skin = skinOptions.Load(parseResult);
+            if (skin == null) return;
             if (knownFile != null)
                 AnsiConsole.MarkupLine($"  [grey]Assembly filter:[/] {Markup.Escape(Path.GetFileName(knownFile))}");
 
@@ -109,18 +114,19 @@ public static class AnalyzeCommand
                             case "md":
                             case "markdown":
                                 var mdPath = baseName + ".md";
-                                await MarkdownReporter.WriteAsync(result, mdPath, cancellationToken);
+                                await MarkdownReporter.WriteAsync(result, mdPath, cancellationToken, skin);
                                 AnsiConsole.MarkupLine($"  [green]✓[/] Markdown → {Markup.Escape(mdPath)}");
                                 break;
                             case "html":
                                 var htmlPath = baseName + ".html";
-                                await HtmlReporter.WriteAsync(result, htmlPath, cancellationToken);
+                                await HtmlReporter.WriteAsync(result, htmlPath, cancellationToken, skin);
                                 AnsiConsole.MarkupLine($"  [green]✓[/] HTML → {Markup.Escape(htmlPath)}");
                                 break;
                             case "pdf":
                                 var pdfPath = baseName + ".pdf";
-                                PdfReporter.Write(result, pdfPath, cancellationToken);
+                                var fontWarnings = PdfReporter.Write(result, pdfPath, cancellationToken, skin);
                                 AnsiConsole.MarkupLine($"  [green]✓[/] PDF → {Markup.Escape(pdfPath)}");
+                                SkinOptions.PrintWarnings(fontWarnings);
                                 break;
                             default:
                                 AnsiConsole.MarkupLine($"  [yellow]Unknown format:[/] {Markup.Escape(fmt)}");

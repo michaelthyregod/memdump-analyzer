@@ -1,16 +1,24 @@
 using System.Text;
 using MemDumpAnalyzer.Core.Models;
+using MemDumpAnalyzer.Reporting.Skins;
 
 namespace MemDumpAnalyzer.Reporting;
 
 public static class MarkdownReporter
 {
-    public static string Render(AnalysisResult r)
+    public static string Render(AnalysisResult r, Skin? skin = null)
     {
+        skin ??= Skin.Default;
         var sb = new StringBuilder();
 
-        sb.AppendLine("# Memory Dump Analysis Report");
+        // Markdown carries no colours or fonts: the skin only contributes its texts
+        sb.AppendLine($"# {skin.ReportTitle}");
         sb.AppendLine();
+        if (skin.CompanyName != null)
+        {
+            sb.AppendLine($"_{Escape(skin.CompanyName)}_");
+            sb.AppendLine();
+        }
         sb.AppendLine("## 1. Executive Summary");
         sb.AppendLine();
         sb.AppendLine($"| Field | Value |");
@@ -20,6 +28,8 @@ public static class MarkdownReporter
         sb.AppendLine($"| Dump size | {r.DumpFileSizeBytes / (1024 * 1024):N0} MB |");
         sb.AppendLine($"| CLR version | {r.ClrVersion} |");
         sb.AppendLine($"| AppDomain | {r.AppDomainName} |");
+        if (skin.PreparedFor != null) sb.AppendLine($"| Prepared for | {Escape(skin.PreparedFor)} |");
+        if (skin.PreparedBy != null) sb.AppendLine($"| Prepared by | {Escape(skin.PreparedBy)} |");
         sb.AppendLine($"| Health score | **{r.HealthScore}/100** |");
         sb.AppendLine();
 
@@ -211,11 +221,15 @@ public static class MarkdownReporter
             }
         }
 
+        sb.AppendLine("---");
+        sb.AppendLine();
+        sb.AppendLine($"_{Escape(skin.FooterLine)}_");
+
         return sb.ToString();
     }
 
-    public static async Task WriteAsync(AnalysisResult result, string outputPath, CancellationToken cancellationToken = default)
-        => await File.WriteAllTextAsync(outputPath, Render(result), cancellationToken);
+    public static async Task WriteAsync(AnalysisResult result, string outputPath, CancellationToken cancellationToken = default, Skin? skin = null)
+        => await File.WriteAllTextAsync(outputPath, Render(result, skin), cancellationToken);
 
     private static string FormatBytes(long bytes)
     {

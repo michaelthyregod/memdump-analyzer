@@ -1,0 +1,11 @@
+{
+  // The original report look. Every other skin starts from these values:
+  // anything a skin leaves out comes from here (colours: see SkinColors in Skin.cs).
+  "name": "default",
+  "displayName": "Default",
+  "fonts": {
+    "body": [ "Arial" ],
+    "heading": [ "Arial" ],
+    "mono": [ "Courier New" ]
+  }
+}

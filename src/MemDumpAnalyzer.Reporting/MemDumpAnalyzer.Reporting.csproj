@@ -14,6 +14,12 @@
 		</EmbeddedResource>
 	</ItemGroup>
 	<ItemGroup>
+		<!-- Built-in skins and the OFL fallback fonts, read at runtime (works in the single-file AOT exe) -->
+		<EmbeddedResource Include="Skins\BuiltIn\**\*" LogicalName="skins/%(RecursiveDir)%(Filename)%(Extension)" />
+		<EmbeddedResource Include="Skins\Fonts\*.ttf" LogicalName="fonts/%(Filename)%(Extension)" />
+		<None Include="Skins\Fonts\LICENSE-Liberation-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+	<ItemGroup>
 		<PackageReference Include="QuestPDF" Version="2026.9.1" />
 		<PackageReference Include="Scriban" Version="7.5.3" />
 	</ItemGroup>

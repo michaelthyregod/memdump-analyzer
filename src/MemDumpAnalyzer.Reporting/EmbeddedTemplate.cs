@@ -9,56 +9,68 @@ internal static class EmbeddedTemplate
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Memory Dump Analysis — {{ dump_file_name | html.escape }}</title>
+<title>{{ skin_title | html.escape }} — {{ dump_file_name | html.escape }}</title>
 <style>
+{{ skin_css }}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f7fa;color:#1a1a2e;line-height:1.6}
+body{font-family:var(--font-body);background:var(--background);color:var(--text);line-height:1.6}
+h1,h2,h3{font-family:var(--font-heading);font-weight:var(--heading-weight)}
 .container{max-width:1200px;margin:0 auto;padding:2rem}
-h1{font-size:2rem;margin-bottom:.25rem;color:#0d1b2a}
-h2{font-size:1.4rem;margin:2rem 0 1rem;color:#1b4f72;border-bottom:2px solid #d6e4f0;padding-bottom:.4rem}
+.report-header{display:flex;align-items:center;gap:var(--logo-clearance);margin-bottom:.25rem}
+.report-header img{height:var(--logo-height);width:auto;margin:var(--logo-clearance) 0}
+h1{font-size:2rem;color:var(--heading)}
+.company{color:var(--muted);font-size:.95rem}
+h2{font-size:1.4rem;margin:2rem 0 1rem;color:var(--primary);border-bottom:2px solid var(--border);padding-bottom:.4rem}
 h3{font-size:1.1rem;margin:1.5rem 0 .5rem}
 .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin:1rem 0}
-.meta-card{background:#fff;border-radius:8px;padding:1rem;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.meta-card .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:.25rem}
-.meta-card .value{font-size:1.1rem;font-weight:600;color:#0d1b2a}
+.meta-card{background:var(--surface);border-radius:8px;padding:1rem;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.meta-card .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.25rem}
+.meta-card .value{font-size:1.1rem;font-weight:600;color:var(--heading)}
 .health-score{font-size:2rem;font-weight:700}
-.health-high{color:#27ae60}.health-med{color:#f39c12}.health-low{color:#e74c3c}
+.health-high{color:var(--success)}.health-med{color:var(--warning)}.health-low{color:var(--critical)}
 .findings{margin:1rem 0}
-.finding{background:#fff;border-radius:8px;padding:1rem 1.25rem;margin:.5rem 0;border-left:4px solid #ccc;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.finding.critical{border-color:#e74c3c;background:#fff5f5}
-.finding.warning{border-color:#f39c12;background:#fffbf0}
-.finding.info{border-color:#3498db;background:#f0f7ff}
-.badge{display:inline-block;padding:.15rem .55rem;border-radius:4px;font-size:.75rem;font-weight:700;text-transform:uppercase;margin-right:.5rem}
-.badge.critical{background:#e74c3c;color:#fff}
-.badge.warning{background:#f39c12;color:#fff}
-.badge.info{background:#3498db;color:#fff}
+.finding{background:var(--surface);border-radius:8px;padding:1rem 1.25rem;margin:.5rem 0;border-left:4px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.finding.critical{border-color:var(--critical);background:var(--critical-background)}
+.finding.warning{border-color:var(--warning);background:var(--warning-background)}
+.finding.info{border-color:var(--info);background:var(--info-background)}
+.badge{display:inline-block;padding:.15rem .55rem;border-radius:4px;font-size:.75rem;font-weight:700;text-transform:uppercase;margin-right:.5rem;color:var(--on-primary)}
+.badge.critical{background:var(--critical)}
+.badge.warning{background:var(--warning)}
+.badge.info{background:var(--info)}
 .finding-summary{font-weight:600;margin-bottom:.3rem}
-.finding-detail{font-size:.9rem;color:#555;margin:.2rem 0}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-th{background:#1b4f72;color:#fff;padding:.6rem .9rem;text-align:left;font-size:.85rem}
-td{padding:.5rem .9rem;border-bottom:1px solid #eef1f5;font-size:.85rem}
+.finding-detail{font-size:.9rem;color:var(--muted);margin:.2rem 0}
+.recommendation{color:var(--accent)}
+table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+th{background:var(--primary);color:var(--on-primary);padding:.6rem .9rem;text-align:left;font-size:.85rem}
+td{padding:.5rem .9rem;border-bottom:1px solid var(--divider);font-size:.85rem}
 tr:last-child td{border-bottom:none}
-tr:nth-child(even) td{background:#f9fbfc}
-.chart-wrap{background:#fff;border-radius:8px;padding:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.07);margin:1rem 0}
+tr:nth-child(even) td{background:var(--stripe)}
+.chart-wrap{background:var(--surface);border-radius:8px;padding:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.07);margin:1rem 0}
 .bar-row{display:flex;align-items:center;margin:.35rem 0;font-size:.85rem}
-.bar-label{width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444}
-.bar-track{flex:1;background:#eef1f5;border-radius:4px;height:18px;margin:0 .75rem}
-.bar-fill{height:100%;border-radius:4px;background:#1b4f72;min-width:2px}
-.bar-value{width:90px;text-align:right;color:#555}
-details summary{cursor:pointer;font-weight:600;padding:.5rem 0;color:#1b4f72}
+.bar-label{width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.bar-track{flex:1;background:var(--divider);border-radius:4px;height:18px;margin:0 .75rem}
+.bar-fill{height:100%;border-radius:4px;background:var(--primary);min-width:2px}
+.bar-value{width:90px;text-align:right;color:var(--muted)}
+details summary{cursor:pointer;font-weight:600;padding:.5rem 0;color:var(--primary)}
 details[open] summary{margin-bottom:.75rem}
-.stack{font-family:'Cascadia Code','Fira Code',monospace;font-size:.78rem;background:#f4f4f8;border-radius:4px;padding:.5rem;max-height:200px;overflow-y:auto}
-.tech-details{font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:.78rem;background:#0d1b2a;color:#c8d8e8;border-radius:6px;padding:1rem;margin-top:.75rem;white-space:pre;overflow-x:auto;max-height:500px;overflow-y:auto;line-height:1.5}
-.tech-details summary{font-family:inherit;font-size:.8rem;color:#7fb3d3;cursor:pointer;padding:.25rem 0}
-.section{background:#fff;border-radius:8px;padding:1.5rem;margin:1rem 0;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
+.stack{font-family:var(--font-mono);font-size:.78rem;background:var(--stack-background);border-radius:4px;padding:.5rem;max-height:200px;overflow-y:auto}
+.tech-details{font-family:var(--font-mono);font-size:.78rem;background:var(--code-background);color:var(--code-text);border-radius:6px;padding:1rem;margin-top:.75rem;white-space:pre;overflow-x:auto;max-height:500px;overflow-y:auto;line-height:1.5}
+.tech-details summary{font-family:inherit;font-size:.8rem;color:var(--code-accent);cursor:pointer;padding:.25rem 0}
+.section{background:var(--surface);border-radius:8px;padding:1.5rem;margin:1rem 0;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </style>
 </head>
 <body>
 <div class="container">
 
-<h1>Memory Dump Analysis</h1>
-<p style="color:#666;margin-bottom:1.5rem">Generated {{ generated_utc }} UTC</p>
+<div class="report-header">
+  {{ if skin_logo }}<img src="{{ skin_logo }}" alt="">{{ end }}
+  <div>
+    <h1>{{ skin_title | html.escape }}</h1>
+    {{ if skin_company }}<div class="company">{{ skin_company | html.escape }}</div>{{ end }}
+  </div>
+</div>
+<p style="color:var(--muted);margin-bottom:1.5rem">Generated {{ generated_utc }} UTC</p>
 
 <!-- Executive Summary -->
 <div class="meta-grid">
@@ -82,6 +94,14 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
     <div class="label">AppDomain</div>
     <div class="value">{{ r.app_domain_name | html.escape }}</div>
   </div>
+  {{ if skin_prepared_for }}<div class="meta-card">
+    <div class="label">Prepared for</div>
+    <div class="value">{{ skin_prepared_for | html.escape }}</div>
+  </div>{{ end }}
+  {{ if skin_prepared_by }}<div class="meta-card">
+    <div class="label">Prepared by</div>
+    <div class="value">{{ skin_prepared_by | html.escape }}</div>
+  </div>{{ end }}
   <div class="meta-card">
     <div class="label">Health Score</div>
     <div class="value health-score {{ if r.health_score >= 70 }}health-high{{ else if r.health_score >= 40 }}health-med{{ else }}health-low{{ end }}">{{ r.health_score }}/100</div>
@@ -100,17 +120,17 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
     <div class="finding-summary"><span class="badge {{ severity_class f.severity }}">{{ severity_label f.severity }}</span>{{ f.summary | html.escape }}</div>
     <div class="finding-detail">{{ f.explanation | html.escape }}</div>
     {{ if f.evidence }}<div class="finding-detail"><strong>Evidence:</strong> {{ f.evidence | html.escape }}</div>{{ end }}
-    {{ if f.recommendation }}<div class="finding-detail" style="color:#1a5276"><strong>Recommendation:</strong> {{ f.recommendation | html.escape }}</div>{{ end }}
+    {{ if f.recommendation }}<div class="finding-detail" style="color:var(--accent)"><strong>Recommendation:</strong> {{ f.recommendation | html.escape }}</div>{{ end }}
     {{ if f.technical_details }}
     <details class="tech-details-wrap" style="margin-top:.5rem">
-      <summary class="tech-details" style="background:#1a2a3a;padding:.4rem .75rem;border-radius:4px 4px 0 0">▶ Technical details (click to expand)</summary>
+      <summary class="tech-details" style="background:var(--code-header);padding:.4rem .75rem;border-radius:4px 4px 0 0">Technical details (click to expand)</summary>
       <div class="tech-details" style="border-radius:0 0 6px 6px;margin-top:0">{{ for line in f.technical_details }}{{ line | html.escape }}
 {{ end }}</div>
     </details>
     {{ end }}
   </div>
 {{ end }}
-{{ if r.findings.size == 0 }}<p style="color:#27ae60;font-weight:600">No significant findings — heap looks healthy!</p>{{ end }}
+{{ if r.findings.size == 0 }}<p style="color:var(--success);font-weight:600">No significant findings — heap looks healthy!</p>{{ end }}
 </div>
 
 <!-- Memory Overview -->
@@ -124,7 +144,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
     <div class="bar-value">{{ format_bytes row[1] }}</div>
   </div>
 {{ end }}
-<div style="margin-top:.75rem;font-size:.85rem;color:#555">Total heap: <strong>{{ format_bytes r.gc_stats.total_heap_bytes }}</strong> &nbsp;|&nbsp; LOH fragmentation: <strong>{{ math.round r.gc_stats.loh_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.loh_free_bytes }} free) &nbsp;|&nbsp; Gen2 fragmentation: <strong>{{ math.round r.gc_stats.gen2_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.gen2_free_bytes }} free)</div>
+<div style="margin-top:.75rem;font-size:.85rem;color:var(--muted)">Total heap: <strong>{{ format_bytes r.gc_stats.total_heap_bytes }}</strong> &nbsp;|&nbsp; LOH fragmentation: <strong>{{ math.round r.gc_stats.loh_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.loh_free_bytes }} free) &nbsp;|&nbsp; Gen2 fragmentation: <strong>{{ math.round r.gc_stats.gen2_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.gen2_free_bytes }} free)</div>
 </div>
 
 <!-- Top Memory Consumers -->
@@ -183,11 +203,11 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
         <td>{{ t.os_thread_id }}</td>
         <td>{{ t.managed_thread_id }}</td>
         <td>{{ t.state | html.escape }}</td>
-        <td style="font-size:.8rem;color:#c0392b">{{ t.current_exception | html.escape }}</td>
+        <td style="font-size:.8rem;color:var(--critical)">{{ t.current_exception | html.escape }}</td>
         <td><div class="stack">{{ for f in t.stack_frames | array.limit 5 }}{{ f | html.escape }}&#10;{{ end }}</div></td>
       </tr>
     {{ end }}
-    {{ if alive_thread_count > 300 }}<tr><td colspan="5" style="color:#888;font-style:italic">… {{ alive_thread_count - 300 }} more threads not shown</td></tr>{{ end }}
+    {{ if alive_thread_count > 300 }}<tr><td colspan="5" style="color:var(--subtle);font-style:italic">… {{ alive_thread_count - 300 }} more threads not shown</td></tr>{{ end }}
     </tbody>
   </table>
 </details>
@@ -228,7 +248,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
 <!-- Application Code Hotspots -->
 {{ if r.application_hotspots.size > 0 }}
 <h2>Application Code Hotspots</h2>
-<p style="color:#555;font-size:.9rem;margin-bottom:1rem">
+<p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
   Assemblies found in thread stacks that are <strong>not suppressed</strong> by the known-assembly filter
   ({{ r.known_assembly_filters.size }} rule{{ if r.known_assembly_filters.size != 1 }}s{{ end }} active —
   <code style="font-size:.8rem">-prefix</code> hides an assembly, <code style="font-size:.8rem">+prefix</code> forces it visible even under a broader exclude).
@@ -241,8 +261,8 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
     <tr>
       <td style="font-family:monospace;font-weight:600;font-size:.85rem">{{ h.assembly | html.escape }}</td>
       <td style="text-align:right">{{ h.thread_count }}</td>
-      <td style="text-align:right{{ if h.blocked_thread_count > 0 }};color:#e74c3c;font-weight:700{{ end }}">{{ h.blocked_thread_count }}</td>
-      <td style="font-family:monospace;font-size:.78rem;color:#444">{{ h.top_methods | array.first | html.escape }}</td>
+      <td style="text-align:right{{ if h.blocked_thread_count > 0 }};color:var(--critical);font-weight:700{{ end }}">{{ h.blocked_thread_count }}</td>
+      <td style="font-family:monospace;font-size:.78rem;color:var(--muted)">{{ h.top_methods | array.first | html.escape }}</td>
     </tr>
   {{ end }}
   </tbody>
@@ -250,10 +270,10 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
 <details style="margin-top:1rem">
   <summary>All methods per assembly (click to expand)</summary>
   {{ for h in r.application_hotspots | array.limit 30 }}
-  <h3 style="margin:1.25rem 0 .4rem;color:#1b4f72;font-size:1rem">{{ h.assembly | html.escape }}
-    <span style="font-weight:400;font-size:.85rem;color:#666"> — {{ h.thread_count }} thread{{ if h.thread_count != 1 }}s{{ end }}{{ if h.blocked_thread_count > 0 }}, <span style="color:#e74c3c">{{ h.blocked_thread_count }} blocked</span>{{ end }}</span>
+  <h3 style="margin:1.25rem 0 .4rem;color:var(--primary);font-size:1rem">{{ h.assembly | html.escape }}
+    <span style="font-weight:400;font-size:.85rem;color:var(--muted)"> — {{ h.thread_count }} thread{{ if h.thread_count != 1 }}s{{ end }}{{ if h.blocked_thread_count > 0 }}, <span style="color:var(--critical)">{{ h.blocked_thread_count }} blocked</span>{{ end }}</span>
   </h3>
-  <div class="tech-details" style="background:#0d1b2a;color:#c8d8e8;padding:.75rem 1rem;border-radius:6px;font-size:.78rem;line-height:1.6">{{ for m in h.top_methods }}{{ m | html.escape }}
+  <div class="tech-details" style="background:var(--code-background);color:var(--code-text);padding:.75rem 1rem;border-radius:6px;font-size:.78rem;line-height:1.6">{{ for m in h.top_methods }}{{ m | html.escape }}
 {{ end }}</div>
   {{ end }}
 </details>
@@ -265,12 +285,12 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
 <div class="finding {{ severity_class f.severity }}" style="margin:.75rem 0">
   <h3><span class="badge {{ severity_class f.severity }}">{{ severity_label f.severity }}</span>{{ f.id | html.escape }}</h3>
   <p style="font-weight:600;margin:.4rem 0">{{ f.summary | html.escape }}</p>
-  <p style="color:#555;font-size:.9rem">{{ f.explanation | html.escape }}</p>
+  <p style="color:var(--muted);font-size:.9rem">{{ f.explanation | html.escape }}</p>
   {{ if f.evidence }}<p style="font-size:.85rem;margin-top:.4rem"><strong>Evidence:</strong> {{ f.evidence | html.escape }}</p>{{ end }}
-  {{ if f.recommendation }}<p style="font-size:.85rem;margin-top:.4rem;color:#1a5276"><strong>Recommendation:</strong> {{ f.recommendation | html.escape }}</p>{{ end }}
+  {{ if f.recommendation }}<p style="font-size:.85rem;margin-top:.4rem;color:var(--accent)"><strong>Recommendation:</strong> {{ f.recommendation | html.escape }}</p>{{ end }}
   {{ if f.technical_details }}
   <details style="margin-top:.75rem">
-    <summary class="tech-details" style="background:#1a2a3a;padding:.4rem .75rem;border-radius:4px;color:#7fb3d3;cursor:pointer">▶ Technical details</summary>
+    <summary class="tech-details" style="background:var(--code-header);padding:.4rem .75rem;border-radius:4px;color:var(--code-accent);cursor:pointer">Technical details</summary>
     <div class="tech-details" style="margin-top:4px">{{ for line in f.technical_details }}{{ line | html.escape }}
 {{ end }}</div>
   </details>
@@ -278,7 +298,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:#999}
 </div>
 {{ end }}
 
-<footer>memdump-analyzer &bull; {{ date.now | date.to_string '%Y' }}</footer>
+<footer>{{ skin_footer | html.escape }}</footer>
 </div>
 </body>
 </html>

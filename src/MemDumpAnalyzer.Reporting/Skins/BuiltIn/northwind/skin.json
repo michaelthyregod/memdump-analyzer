@@ -1,0 +1,48 @@
+{
+  // Reference skin for a fictional company. Shows every option: texts, logo, colours,
+  // and a font shipped with the skin (fonts/), with fallbacks.
+  "name": "northwind",
+  "displayName": "Northwind (reference skin)",
+  "texts": {
+    "reportTitle": "Memory Dump Health Report",
+    "companyName": "Northwind",
+    "preparedBy": "Northwind Performance Team",
+    "footer": "Northwind — reference skin"
+  },
+  "logo": "logo.svg",
+  "colors": {
+    "background": "#f6f4ef",
+    "surface": "#ffffff",
+    "text": "#1f2a2e",
+    "heading": "#14313b",
+    "primary": "#1f4e5f",
+    "onPrimary": "#ffffff",
+    "accent": "#b5562a",
+    "border": "#d5e0dc",
+    "divider": "#e9eeec",
+    "stripe": "#f8faf9",
+    "muted": "#56646a",
+    "subtle": "#8a9599",
+    "critical": "#b8322a",
+    "criticalBackground": "#fbf0ee",
+    "warning": "#d08a0a",
+    "warningBackground": "#fdf6e7",
+    "info": "#2b7a9b",
+    "infoBackground": "#eef6f9",
+    "success": "#3c8d5a",
+    "codeBackground": "#14313b",
+    "codeHeader": "#1e4350",
+    "codeText": "#d7e6e2",
+    "codeAccent": "#e8a571",
+    "stackBackground": "#f1f0eb"
+  },
+  "fonts": {
+    "body": [ "Segoe UI", "Liberation Sans" ],
+    "heading": [ "Liberation Serif", "Georgia" ],
+    "mono": [ "Consolas", "Liberation Mono" ]
+  },
+  "fontFiles": [
+    { "family": "Liberation Serif", "file": "fonts/LiberationSerif-Bold.ttf", "weight": 700, "style": "normal" }
+  ],
+  "fontLicense": "Liberation Serif: SIL Open Font License 1.1 (fonts/LICENSE-Liberation-OFL.txt)."
+}

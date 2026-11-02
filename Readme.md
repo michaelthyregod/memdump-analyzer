@@ -17,6 +17,18 @@ MemDumpAnalyzer.Cli.exe diff mem-dumps/baseline.dmp mem-dumps/problem.dmp
 
 See [mem-dumps/README.md](mem-dumps/README.md) for how to capture good dumps.
 
+## Report skins
+
+`--skin` sets the look and feel of the HTML, PDF and diff reports: colours, fonts, logo and texts.
+Use a built-in skin (`default`, `northwind`) or a folder with your own `skin.json`, and add the
+customer with `--prepared-for`:
+
+```bash
+MemDumpAnalyzer.Cli.exe analyze mem-dumps/dump.dmp --format html,pdf --skin northwind --prepared-for "Example Customer A/S"
+```
+
+See [docs/skins.md](docs/skins.md) for the format, font fallbacks and font licensing.
+
 ## What it's based on
 
 The analysis approach and most rules of thumb come from **Nikolay Mitikov**:
