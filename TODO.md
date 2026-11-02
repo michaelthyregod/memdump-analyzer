@@ -31,6 +31,17 @@ Build the section list once (like `ReportHeadings`) so HTML, PDF and Markdown sh
    sections (e.g. lock contention → the thread pattern, LOH → memory); hotspots link to the threads and
    stacks they appear in and back to the findings; a "back to top" link per section.
 
+4. **Hotspots: say who can change the code** (idea phase — needs to be made concrete). Today the
+   assembly filter only hides or shows. Instead, mark each hotspot with who owns it, e.g. *your code*,
+   *platform* (`Sitecore.*`), *third party* (`Microsoft.ApplicationInsights.*`, `StackExchange.Redis`),
+   *.NET framework*, so a reader sees at once that a platform hotspot can't be fixed in their own code
+   (but may still be configured, patched or reported to the vendor). Open questions:
+   - grouping in the filter file (e.g. named groups or sections instead of one flat list);
+   - different filters per audience (developer, operations, customer/management) — chosen with an
+     option, a setting or the skin;
+   - whether hidden assemblies should still appear, collapsed under their group;
+   - how findings use it (e.g. lock contention inside Sitecore vs. inside custom code).
+
 ## Follow-ups
 
 - Re-enable the GitHub Actions workflow (disabled manually since March 2026), then run it on `main`.
