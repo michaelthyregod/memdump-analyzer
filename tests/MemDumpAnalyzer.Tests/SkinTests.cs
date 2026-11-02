@@ -154,6 +154,32 @@ public class SkinTests : IDisposable
     }
 
     [Fact]
+    public void FindSkinFolders_ListsWhatIsThere_FirstSearchFolderWins()
+    {
+        var first = Path.Combine(_dir, "first");
+        var second = Path.Combine(_dir, "second");
+        foreach (var skin in new[] { Path.Combine(first, "acme"), Path.Combine(second, "acme"), Path.Combine(second, "beta") })
+        {
+            Directory.CreateDirectory(skin);
+            File.WriteAllText(Path.Combine(skin, "skin.json"), "{}");
+        }
+        Directory.CreateDirectory(Path.Combine(first, "not-a-skin"));   // no skin.json → ignored
+
+        var found = SkinLoader.FindSkinFolders([first, Path.Combine(_dir, "missing"), second]);
+
+        Assert.Equal(["acme", "beta"], found.Select(f => f.Name));
+        Assert.Equal(Path.Combine(first, "acme"), found[0].Folder);
+    }
+
+    [Fact]
+    public void FindSkinFolders_NoSkinsAnywhere_IsEmpty()
+    {
+        // e.g. someone deleted the example skins: only the built-in default remains, nothing fails
+        Assert.Empty(SkinLoader.FindSkinFolders([Path.Combine(_dir, "missing"), _dir]));
+        Assert.Equal("Default", SkinLoader.Load("default").DisplayName);
+    }
+
+    [Fact]
     public void Load_UnknownSkin_Throws()
     {
         var ex = Assert.Throws<FileNotFoundException>(() => SkinLoader.Load(Path.Combine(_dir, "nope")));

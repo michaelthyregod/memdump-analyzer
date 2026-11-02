@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -20,6 +20,10 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Using Include="Xunit" />
+	</ItemGroup>
+	<ItemGroup>
+		<!-- The example skins (skins\northwind) are folders, found by name next to the test assembly -->
+		<None Include="..\..\skins\**\*" LinkBase="skins" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\MemDumpAnalyzer.Core\MemDumpAnalyzer.Core.csproj" />

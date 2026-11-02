@@ -44,8 +44,9 @@ Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Report skins
 
 `--skin` sets the look and feel of the HTML, PDF and diff reports: colours, fonts, logo and texts.
-Use a built-in skin (`default`, `northwind`) or a folder with your own `skin.json`, and add the
-customer with `--prepared-for`:
+`default` is built in; other skins are folders with a `skin.json`, given by path or by name
+(`--skin northwind` uses `skins\northwind`). [`skins/northwind`](skins/northwind) is an example to copy.
+Add the customer with `--prepared-for`:
 
 ```bash
 MemDumpAnalyzer.Cli.exe analyze mem-dumps/dump.dmp --format html,pdf --skin northwind --prepared-for "Example Customer A/S"

@@ -23,9 +23,14 @@ More examples
 
    Look and feel (skins), with the customer on the report:
    MemDumpAnalyzer.Cli.exe analyze mem-dumps\w3wp.dmp --format html,pdf --skin northwind --prepared-for "Customer A/S"
-   MemDumpAnalyzer.Cli.exe analyze mem-dumps\w3wp.dmp --format html,pdf --skin skins\<name>
 
-   Built-in skins: default, northwind. Skin folders in skins\ (if any) are described in skins\README.md.
+   See which skins are available:
+   MemDumpAnalyzer.Cli.exe skins list
+
+   --skin <name> uses the folder skins\<name>. The standard look (default) is built in; skins\northwind
+   is an example for a fictional company. To make your own, copy it under a new name and edit the copy
+   (a new version of the tool replaces the example). Other skins in skins\ (if any) are described in
+   skins\README.md.
 
    All options:   MemDumpAnalyzer.Cli.exe analyze --help
    Full guide:    docs\usage.md      Skins: docs\skins.md

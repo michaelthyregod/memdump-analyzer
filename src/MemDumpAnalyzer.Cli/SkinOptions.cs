@@ -9,8 +9,8 @@ internal sealed class SkinOptions
 {
     public Option<string?> Skin { get; } = new("--skin", "-s")
     {
-        Description = $"Report look and feel: a built-in skin ({string.Join(", ", SkinLoader.BuiltInSkins)}) " +
-                      "or a folder containing skin.json. Default: default."
+        Description = "Report look and feel: 'default', the name of a folder in skins\\ (e.g. northwind), " +
+                      "or the path to a folder containing skin.json. Default: default."
     };
 
     public Option<string?> PreparedFor { get; } = new("--prepared-for")

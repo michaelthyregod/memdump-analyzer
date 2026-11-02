@@ -10,8 +10,16 @@ MemDumpAnalyzer.Cli.exe analyze dump.dmp --skin C:\path\to\my-skin
 MemDumpAnalyzer.Cli.exe diff a.dmp b.dmp --skin C:\path\to\my-skin
 ```
 
-Built-in skins: `default` (the original look) and `northwind` (a reference skin for a fictional
-company that uses every option). Any other value is a folder containing `skin.json`.
+`default` (the original look) is built into the tool. Every other skin is a folder containing
+`skin.json`, given either as a path (`--skin C:\path\to\my-skin`) or by name: `--skin northwind` looks
+for `skins\northwind` in the current folder and then next to the executable.
+
+[`skins/northwind`](../skins/northwind) is the example: a skin for a fictional company that uses every
+option. Copy the folder, rename it and edit `skin.json` to make your own — don't edit the example in
+place, as a new version of the tool replaces it. Only `default` is guaranteed to exist; deleting the
+example is fine.
+
+`MemDumpAnalyzer.Cli.exe skins list` shows the skins that are available right now and where they are.
 
 The skin is independent of how a report is drawn: the HTML and the PDF read the same skin.
 
@@ -29,7 +37,7 @@ Files are only read from inside the skin folder.
 ## skin.json
 
 Every part is optional — anything left out comes from the default skin. Comments (`//`) and
-trailing commas are allowed. See `src/MemDumpAnalyzer.Reporting/Skins/BuiltIn/northwind/skin.json`
+trailing commas are allowed. See [`skins/northwind/skin.json`](../skins/northwind/skin.json)
 for a complete example.
 
 ```jsonc

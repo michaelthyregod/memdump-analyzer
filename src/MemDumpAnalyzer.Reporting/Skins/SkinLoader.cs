@@ -5,7 +5,8 @@ using System.Text.RegularExpressions;
 namespace MemDumpAnalyzer.Reporting.Skins;
 
 /// <summary>
-/// Loads a skin by built-in name ("default", "northwind") or from a folder containing <c>skin.json</c>.
+/// Loads the built-in "default" skin, a skin folder (containing <c>skin.json</c>) by path, or a skin folder by
+/// name from a <c>skins</c> folder in the current directory or next to the executable.
 /// Missing values come from the default skin; problems become <see cref="Skin.Warnings"/>, never failures —
 /// except a skin that can't be found or a skin.json that isn't valid JSON.
 /// </summary>
@@ -15,7 +16,39 @@ public static partial class SkinLoader
     private const string ResourcePrefix = "skins/";
     private const string FontResourcePrefix = "fonts/";
 
-    public static IReadOnlyList<string> BuiltInSkins => ["default", "northwind"];
+    /// <summary>Skins compiled into the tool. Everything else (e.g. the Northwind example) is a folder.</summary>
+    public static IReadOnlyList<string> BuiltInSkins => ["default"];
+
+    /// <summary>Where a skin given by name (<c>--skin northwind</c>) is looked for, in order.</summary>
+    public static IReadOnlyList<string> SkinSearchFolders =>
+        new[] { Path.Combine(Directory.GetCurrentDirectory(), "skins"), Path.Combine(AppContext.BaseDirectory, "skins") }
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>Names of the skin folders found in <see cref="SkinSearchFolders"/>.</summary>
+    public static IReadOnlyList<string> AvailableSkins => FindSkinFolders(SkinSearchFolders).Select(s => s.Name).ToList();
+
+    /// <summary>
+    /// Skin folders (sub-folders with a skin.json) in the given search folders, sorted by name. When two
+    /// search folders have the same name, the first wins — the same one <see cref="Load"/> would use.
+    /// Missing search folders are simply skipped: no skin folder is required to exist.
+    /// </summary>
+    public static IReadOnlyList<(string Name, string Folder)> FindSkinFolders(IEnumerable<string> searchFolders)
+    {
+        var found = new List<(string Name, string Folder)>();
+        foreach (var root in searchFolders.Where(Directory.Exists))
+        {
+            foreach (var dir in Directory.GetDirectories(root))
+            {
+                var name = Path.GetFileName(dir);
+                if (File.Exists(Path.Combine(dir, SkinFileName)) &&
+                    !found.Any(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    found.Add((name, dir));
+            }
+        }
+        return found.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
 
     private static readonly string[] DefaultBodyFonts = ["Arial"];
     private static readonly string[] DefaultMonoFonts = ["Courier New"];
@@ -23,17 +56,26 @@ public static partial class SkinLoader
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
     private static partial Regex HexColor();
 
-    /// <param name="nameOrPath">Null/"default", a built-in skin name, a skin folder, or a path to a skin.json.</param>
+    /// <param name="nameOrPath">Null/"default"; a skin folder or skin.json path; or the name of a folder in
+    /// <see cref="SkinSearchFolders"/>.</param>
     public static Skin Load(string? nameOrPath)
     {
         if (string.IsNullOrWhiteSpace(nameOrPath) || nameOrPath.Equals("default", StringComparison.OrdinalIgnoreCase))
             return Build(ReadBuiltIn("default"), rel => ReadResource($"{ResourcePrefix}default/{rel}"), "built-in skin 'default'");
 
-        var builtIn = BuiltInSkins.FirstOrDefault(s => s.Equals(nameOrPath, StringComparison.OrdinalIgnoreCase));
-        if (builtIn != null)
-            return Build(ReadBuiltIn(builtIn), rel => ReadResource($"{ResourcePrefix}{builtIn}/{rel.Replace('\\', '/')}"), $"built-in skin '{builtIn}'");
-
         var path = Path.GetFullPath(nameOrPath);
+
+        // A bare name ("northwind") that isn't a path here: look in the skins folders
+        bool isBareName = nameOrPath.IndexOfAny(['\\', '/', ':']) < 0;
+        if (isBareName && !Directory.Exists(path) && !File.Exists(path))
+        {
+            var found = SkinSearchFolders
+                .Select(f => Path.Combine(f, nameOrPath))
+                .FirstOrDefault(d => File.Exists(Path.Combine(d, SkinFileName)));
+            if (found != null)
+                path = found;
+        }
+
         string folder, jsonPath;
         if (Directory.Exists(path))
         {
@@ -47,8 +89,10 @@ public static partial class SkinLoader
         }
         else
         {
+            var names = BuiltInSkins.Concat(AvailableSkins).Distinct(StringComparer.OrdinalIgnoreCase);
             throw new FileNotFoundException(
-                $"Skin '{nameOrPath}' not found. Use one of: {string.Join(", ", BuiltInSkins)}, or a folder that contains {SkinFileName}.");
+                $"Skin '{nameOrPath}' not found. Use one of: {string.Join(", ", names)}, or a folder that contains {SkinFileName} " +
+                $"(names are looked up in: {string.Join("; ", SkinSearchFolders)}).");
         }
 
         if (!File.Exists(jsonPath))

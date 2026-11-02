@@ -7,7 +7,8 @@
     assembles:
         MemDumpAnalyzer.Cli.exe, README-FIRST.txt, known-assemblies.txt,
         Readme.md, LICENSE, THIRD-PARTY-NOTICES.md, docs\usage.md, docs\skins.md,
-        mem-dumps\README.md (drop dumps here), report\ (default output), skins\ (optional)
+        mem-dumps\README.md (drop dumps here), report\ (default output),
+        skins\ (the repo's example skins, plus any from -SkinsDir)
     The zip is git-ignored; it is not a public release.
 
 .PARAMETER SkinsDir
@@ -58,15 +59,22 @@ try {
         -replace '\{\{DATE\}\}', (Get-Date -Format 'yyyy-MM-dd') |
         Set-Content "$stage\README-FIRST.txt" -NoNewline
 
-    if ($SkinsDir) {
-        $skinsSource = Resolve-Path $SkinsDir
-        New-Item -ItemType Directory -Force "$stage\skins" | Out-Null
-        $skins = Get-ChildItem $skinsSource -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'skin.json') }
-        if (-not $skins) { throw "No skin folders (with skin.json) in $skinsSource" }
-        foreach ($s in $skins) { Copy-Item $s.FullName "$stage\skins\$($s.Name)" -Recurse }
-        if (Test-Path "$skinsSource\README.md") { Copy-Item "$skinsSource\README.md" "$stage\skins" }
-        Write-Host "Skins: $($skins.Name -join ', ')"
+    # The repo's example skins (northwind) always ship; -SkinsDir adds more
+    New-Item -ItemType Directory -Force "$stage\skins" | Out-Null
+    $sources = @(Join-Path $repo 'skins')
+    if ($SkinsDir) { $sources += (Resolve-Path $SkinsDir).Path }
+    $shipped = @()
+    foreach ($source in $sources) {
+        $skins = Get-ChildItem $source -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'skin.json') }
+        if (-not $skins) { throw "No skin folders (with skin.json) in $source" }
+        foreach ($s in $skins) {
+            if (Test-Path "$stage\skins\$($s.Name)") { throw "Two skins named '$($s.Name)'" }
+            Copy-Item $s.FullName "$stage\skins\$($s.Name)" -Recurse
+            $shipped += $s.Name
+        }
+        if (Test-Path "$source\README.md") { Copy-Item "$source\README.md" "$stage\skins" }
     }
+    Write-Host "Skins: $($shipped -join ', ')"
 
     if (Test-Path $Output) { Remove-Item $Output -Confirm:$false }
     Compress-Archive -Path "$stage\*" -DestinationPath $Output -CompressionLevel Optimal

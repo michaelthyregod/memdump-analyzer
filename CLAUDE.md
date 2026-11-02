@@ -48,14 +48,15 @@ memdump-analyzer/
 │   │   ├── PdfReporter.cs             # QuestPDF, no TechnicalDetails truncation
 │   │   ├── DiffReporter.cs            # diff command HTML/Markdown (skinned)
 │   │   ├── EmbeddedTemplate.cs        # Full Scriban HTML template (CSS variables from the skin)
-│   │   └── Skins/                     # Skin model, loader, font resolution, CSS; BuiltIn/ (default, northwind) and Fonts/ (Liberation, OFL) are embedded resources
+│   │   └── Skins/                     # Skin model, loader, font resolution, CSS; BuiltIn/default and Fonts/ (Liberation, OFL) are embedded resources
 │   └── MemDumpAnalyzer.Cli/
 │       ├── Program.cs
 │       ├── ErrorReporting.cs          # Actionable messages for dump-loading failures
 │       ├── SkinOptions.cs             # --skin / --prepared-for, shared by analyze and diff
 │       └── Commands/
 │           ├── AnalyzeCommand.cs      # --known-assemblies option; auto-detects known-assemblies.txt
-│           └── DiffCommand.cs
+│           ├── DiffCommand.cs
+│           └── SkinsCommand.cs        # skins list: built-in default + skin folders found now (none required)
 ├── tests/
 │   └── MemDumpAnalyzer.Tests/
 │       ├── FindingEngineTests.cs
@@ -63,6 +64,7 @@ memdump-analyzer/
 │       ├── SkinTests.cs               # Skin loading, font resolution, skinned HTML/Markdown/PDF/diff
 │       ├── DiffAnalyzerTests.cs
 │       └── ReportingTests.cs
+├── skins/northwind/                   # Example skin (folder, shipped in the zip; copied next to the tests)
 └── mem-dumps/                         # Drop .dmp files here
 ```
 
@@ -124,7 +126,7 @@ Every HTML/Markdown/PDF/JSON report contains:
 - **Single dump ≠ trend**: no leak findings from one dump (use `diff`); lock contention is never called a deadlock. Diff compares all types (`topN = int.MaxValue`), not the top N.
 - **Fragmentation** is free-object bytes / allocated range (what `!dumpheap -stat` lists as Free), not committed-vs-range.
 - **HTML template**: Scriban does not auto-escape — every text value must go through `| html.escape` (type names contain `<>`, heap strings contain arbitrary content).
-- **Skins** (`docs/skins.md`): every visual report takes a `Skin`; nothing in a renderer may hard-code a colour, font or title — add a colour token to `SkinColors.Defaults` instead. The skin is renderer-independent (an HTML-to-PDF switch would reuse it). Scriban gets the skin as plain strings (`skin_css`, `skin_title`, …), never the `Skin` object (no reflection). Company brand skins live outside the repo; only `default` and the fictional `northwind` ship in it.
+- **Skins** (`docs/skins.md`): every visual report takes a `Skin`; nothing in a renderer may hard-code a colour, font or title — add a colour token to `SkinColors.Defaults` instead. The skin is renderer-independent (an HTML-to-PDF switch would reuse it). Scriban gets the skin as plain strings (`skin_css`, `skin_title`, …), never the `Skin` object (no reflection). Only `default` is embedded; every other skin is a folder, loaded by path or by name from `skins\<name>` in the current folder or next to the exe (`SkinLoader.SkinSearchFolders`). The fictional `skins/northwind` is the example in the repo; company brand skins live outside the repo.
 - **Report headings** come from `ReportHeadings` (title and sentence case written out by hand, so acronyms like GC stay right) via `skin.Heading(key)`; never type a section heading inline in a renderer.
 - **PDF fonts**: QuestPDF 2026.9 only knows fonts by the family name stored in the file (custom names are obsolete). `SkinFontResolver` registers skin font files, reads their PostScript name (`FontNameReader`) to find the family QuestPDF uses, and passes only available families plus the Liberation fallback.
 - **TechnicalDetails per finding**: `FindingEngine` builds rich multi-line preformatted blocks — blocked thread stacks with assembly names (`[AssemblyName]` suffix), thread pattern tables, LOH segment lists, etc.

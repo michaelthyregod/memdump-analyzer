@@ -56,14 +56,20 @@ between the dumps are the leak candidates. The diff report takes `--skin` and `-
 ## 4. Skins: look and feel
 
 ```cmd
-:: Built-in reference skin for a fictional company
+:: Which skins are there? (the built-in default plus every skin folder found)
+MemDumpAnalyzer.Cli.exe skins list
+
+:: A skin by name: looks for skins\northwind in the current folder, then next to the exe
 MemDumpAnalyzer.Cli.exe analyze mem-dumps\w3wp.dmp --format html,pdf --skin northwind --prepared-for "Example Customer A/S"
 
-:: A skin folder (contains skin.json, optional logo and fonts)
-MemDumpAnalyzer.Cli.exe analyze mem-dumps\w3wp.dmp --format html,pdf --skin skins\my-company
+:: A skin folder anywhere (contains skin.json, optional logo and fonts)
+MemDumpAnalyzer.Cli.exe analyze mem-dumps\w3wp.dmp --format html,pdf --skin C:\skins\my-company
 ```
 
-Built-in skins: `default` (no `--skin` needed) and `northwind`. How to make your own: [skins.md](skins.md).
+`default` is built in (no `--skin` needed) and is the only skin that always exists. `skins\northwind`
+is an example for a fictional company — copy it under a new name to start your own skin rather than
+editing it in place, because a new version of the tool replaces the example. Deleting it is fine.
+How skins work: [skins.md](skins.md).
 
 ## 5. Choose which assemblies count as "your code"
 
