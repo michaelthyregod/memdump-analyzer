@@ -75,6 +75,7 @@ dotnet test
 
 - `global.json` pins the SDK (10.0.403, rolls forward to newer 10.0 feature bands, no previews) and selects **Microsoft.Testing.Platform** as the `dotnet test` runner — required by xunit v3 4.x on the .NET 10 SDK. CI reads the SDK from the same file.
 - Native AOT publish (`dotnet publish src/MemDumpAnalyzer.Cli -c Release -r win-x64`) needs `vswhere.exe` on PATH; it lives in `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer`, which Git Bash/PowerShell sessions may not include.
+- **Single exe / distribution zip:** `scripts/build-dist.ps1 [-SkinsDir <folder>]` publishes with `-p:SingleExe=true`: the `EmbedQuestPdfNativeLibraries` target (CLI csproj, runs before `AssignTargetPaths` — later is too late for resources) embeds QuestPDF's `qpdf`/`QuestPdfSkia` DLLs, and `NativeDependencies.Prepare()` extracts them to `%LOCALAPPDATA%\memdump-analyzer\native\<hash>` and points QuestPDF's P/Invokes at them. Zip layout comes from `dist/README-FIRST.txt` and the script; the zip is git-ignored. Run examples live in `docs/usage.md` — keep it and `dist/README-FIRST.txt` in step with the CLI options.
 
 ## Run
 

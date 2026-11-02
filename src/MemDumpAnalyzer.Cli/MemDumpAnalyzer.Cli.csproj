@@ -23,4 +23,20 @@
 		<ProjectReference Include="..\MemDumpAnalyzer.Reporting\MemDumpAnalyzer.Reporting.csproj" />
 	</ItemGroup>
 
+	<!--
+	  Single-exe build: dotnet publish -c Release -r win-x64 -p:SingleExe=true
+	  Native AOT can't link QuestPDF's native DLLs, so they are embedded as resources and extracted at
+	  startup by NativeDependencies. The exe then runs on its own (the .pdb files are optional).
+	-->
+	<Target Name="EmbedQuestPdfNativeLibraries" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolvePackageAssets"
+	        Condition="'$(SingleExe)' == 'true'">
+		<Error Condition="'$(RuntimeIdentifier)' == ''" Text="SingleExe=true needs a runtime identifier, e.g. -r win-x64." />
+		<ItemGroup>
+			<_QuestPdfNative Include="@(NativeCopyLocalItems)"
+			                 Condition="'%(Filename)' == 'qpdf' or '%(Filename)' == 'QuestPdfSkia'" />
+			<EmbeddedResource Include="@(_QuestPdfNative)" LogicalName="native/%(Filename)%(Extension)" />
+		</ItemGroup>
+		<Error Condition="'@(_QuestPdfNative->Count())' != '2'" Text="Expected qpdf and QuestPdfSkia among the native assets for $(RuntimeIdentifier); found: @(_QuestPdfNative->'%(Filename)')" />
+	</Target>
+
 </Project>

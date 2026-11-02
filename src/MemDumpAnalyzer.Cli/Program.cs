@@ -1,5 +1,16 @@
 using System.CommandLine;
+using MemDumpAnalyzer.Cli;
 using MemDumpAnalyzer.Cli.Commands;
+using Spectre.Console;
+
+try
+{
+    NativeDependencies.Prepare();   // single-exe builds only; a no-op otherwise
+}
+catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DllNotFoundException or BadImageFormatException)
+{
+    AnsiConsole.MarkupLine($"[yellow]⚠ PDF support unavailable: {Markup.Escape(ex.Message)}[/]");
+}
 
 var rootCommand = new RootCommand("memdump-analyzer — .NET memory dump analysis tool");
 

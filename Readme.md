@@ -15,7 +15,20 @@ MemDumpAnalyzer.Cli.exe analyze mem-dumps/dump.dmp --known-assemblies known-asse
 MemDumpAnalyzer.Cli.exe diff mem-dumps/baseline.dmp mem-dumps/problem.dmp
 ```
 
-See [mem-dumps/README.md](mem-dumps/README.md) for how to capture good dumps.
+See [docs/usage.md](docs/usage.md) for every command and option with examples, and
+[mem-dumps/README.md](mem-dumps/README.md) for how to capture good dumps.
+
+### Build a single executable
+
+```powershell
+.\scripts\build-dist.ps1                          # memdump-analyzer-win-x64.zip in the repo root
+.\scripts\build-dist.ps1 -SkinsDir ..\my-skins     # also ship skin folders kept outside the repo
+```
+
+The zip holds one self-contained Native AOT `MemDumpAnalyzer.Cli.exe` (no .NET needed; QuestPDF's
+native libraries are embedded and unpacked to `%LOCALAPPDATA%\memdump-analyzer\native` on first use),
+plus `known-assemblies.txt`, `README-FIRST.txt` with run examples, the docs, and empty `mem-dumps\`
+and `report\` folders. Building needs the .NET 10 SDK and Visual Studio's C++ build tools.
 
 ## License
 
