@@ -18,6 +18,19 @@ Open decisions and follow-ups. Move an item to a GitHub issue when work on it st
   Accepted for now because no releases or binaries have been published. **Decide before the first
   release.**
 
+## Report structure (feedback from first users)
+
+Build the section list once (like `ReportHeadings`) so HTML, PDF and Markdown share the order and links.
+
+1. **Index of sections** at the top: linked table of contents in HTML, clickable entries with page
+   numbers in the PDF (QuestPDF sections and section links), a list of links in Markdown.
+2. **Reorder the sections** so the conclusions come first and raw data last. Proposal: summary →
+   findings (short) → thread patterns → application code hotspots → memory (overview, top consumers,
+   duplicate strings) → GC health → details/appendix (full findings with technical details, thread list).
+3. **Cross-links between sections:** findings link down to their detailed explanation and to related
+   sections (e.g. lock contention → the thread pattern, LOH → memory); hotspots link to the threads and
+   stacks they appear in and back to the findings; a "back to top" link per section.
+
 ## Follow-ups
 
 - Re-enable the GitHub Actions workflow (disabled manually since March 2026), then run it on `main`.
