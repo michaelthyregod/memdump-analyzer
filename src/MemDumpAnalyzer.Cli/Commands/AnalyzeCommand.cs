@@ -1,4 +1,5 @@
 using System.CommandLine;
+using MemDumpAnalyzer.Cli.Settings;
 using MemDumpAnalyzer.Core;
 using MemDumpAnalyzer.Reporting;
 using Spectre.Console;
@@ -9,24 +10,24 @@ public static class AnalyzeCommand
 {
     public static Command Build()
     {
-        var dumpArg = new Argument<FileInfo>("dump") { Description = "Path to the .dmp file to analyze" };
-
-        var outputOpt = new Option<DirectoryInfo?>("--output", "-o") { Description = "Output directory (default: ./report)" };
-        var formatOpt = new Option<string>("--format", "-f")
+        var dumpArg = new Argument<string>("dump")
         {
-            Description = "Comma-separated list of output formats: html, md, json, pdf",
-            DefaultValueFactory = _ => "html,json"
+            Description = "The .dmp file: a path, or a name found in the dumpsDirs setting or mem-dumps\\ next to the exe"
         };
-        var topOpt = new Option<int>("--top")
+
+        var outputOpt = new Option<DirectoryInfo?>("--output", "-o") { Description = "Output folder. Default: the outputDir setting, else .\\report" };
+        var formatOpt = new Option<string?>("--format", "-f")
         {
-            Description = "Top N types to include in heap analysis",
-            DefaultValueFactory = _ => 100
+            Description = $"Comma-separated output formats: html, md, json, pdf. Default: the formats setting, else {Locations.DefaultFormats}"
+        };
+        var topOpt = new Option<int?>("--top")
+        {
+            Description = $"Number of heap types in the reports. Default: the top setting, else {Locations.DefaultTop}"
         };
         var knownAssembliesOpt = new Option<FileInfo?>("--known-assemblies", "-k")
         {
-            Description = "Path to a text file listing known/trusted assembly prefixes (one per line). " +
-                          "Assemblies not matching any prefix are reported as application hotspots. " +
-                          "Also auto-detected as 'known-assemblies.txt' in the current directory."
+            Description = "Assembly filter file (which assemblies count as framework). Default: the knownAssemblies setting, " +
+                          "else known-assemblies.txt in the current folder, else next to the exe."
         };
 
         var skinOptions = new SkinOptions();
@@ -41,19 +42,21 @@ public static class AnalyzeCommand
 
         cmd.SetAction(async (parseResult, cancellationToken) =>
         {
-            var dumpFile   = parseResult.GetValue(dumpArg)!;
-            var outputDir  = parseResult.GetValue(outputOpt) ?? new DirectoryInfo("./report");
-            var formats    = (parseResult.GetValue(formatOpt) ?? "html,json")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var topN       = parseResult.GetValue(topOpt);
+            var settings = Locations.LoadSettings();
+            if (settings == null) return;
 
-            // Known-assemblies filter: explicit flag, then auto-detect in cwd
-            var knownFile  = parseResult.GetValue(knownAssembliesOpt)?.FullName
-                ?? (File.Exists("known-assemblies.txt") ? Path.GetFullPath("known-assemblies.txt") : null);
+            var dumpGiven  = parseResult.GetValue(dumpArg)!;
+            var outputDir  = Locations.OutputDir(parseResult.GetValue(outputOpt), settings);
+            var formats    = Locations.Formats(parseResult.GetValue(formatOpt), settings);
+            var topN       = Locations.Top(parseResult.GetValue(topOpt), settings);
+            var knownFile  = Locations.FindKnownAssemblies(parseResult.GetValue(knownAssembliesOpt)?.FullName, settings);
 
-            if (!dumpFile.Exists)
+            var dumpFile = Locations.FindDump(dumpGiven, settings);
+            if (dumpFile == null)
             {
-                AnsiConsole.MarkupLine($"[red]Dump file not found:[/] {Markup.Escape(dumpFile.FullName)}");
+                AnsiConsole.MarkupLine($"[red]Dump file not found:[/] {Markup.Escape(dumpGiven)}");
+                if (!Path.IsPathRooted(dumpGiven))
+                    AnsiConsole.MarkupLine("  [grey]Also looked in:[/] " + Markup.Escape(string.Join("; ", Locations.DumpSearchFolders(settings))));
                 Environment.ExitCode = 1;
                 return;
             }
@@ -61,10 +64,12 @@ public static class AnalyzeCommand
             outputDir.Create();
 
             AnsiConsole.MarkupLine($"[bold blue]memdump-analyzer[/] — analyzing [yellow]{Markup.Escape(dumpFile.Name)}[/]");
-            var skin = skinOptions.Load(parseResult);
+            var skin = skinOptions.Load(parseResult, settings);
             if (skin == null) return;
             if (knownFile != null)
-                AnsiConsole.MarkupLine($"  [grey]Assembly filter:[/] {Markup.Escape(Path.GetFileName(knownFile))}");
+                AnsiConsole.MarkupLine($"  [grey]Assembly filter:[/] {Markup.Escape(knownFile)}");
+            else
+                AnsiConsole.MarkupLine("  [yellow]⚠ No known-assemblies.txt found: the application hotspots section will be empty.[/]");
 
             MemDumpAnalyzer.Core.Models.AnalysisResult? result = null;
 

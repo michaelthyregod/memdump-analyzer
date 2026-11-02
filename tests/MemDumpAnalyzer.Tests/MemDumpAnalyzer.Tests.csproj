@@ -28,5 +28,6 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\MemDumpAnalyzer.Core\MemDumpAnalyzer.Core.csproj" />
 		<ProjectReference Include="..\..\src\MemDumpAnalyzer.Reporting\MemDumpAnalyzer.Reporting.csproj" />
+		<ProjectReference Include="..\..\src\MemDumpAnalyzer.Cli\MemDumpAnalyzer.Cli.csproj" />
 	</ItemGroup>
 </Project>

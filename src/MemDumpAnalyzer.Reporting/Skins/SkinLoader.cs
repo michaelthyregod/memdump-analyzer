@@ -19,12 +19,31 @@ public static partial class SkinLoader
     /// <summary>Skins compiled into the tool. Everything else (e.g. the Northwind example) is a folder.</summary>
     public static IReadOnlyList<string> BuiltInSkins => ["default"];
 
-    /// <summary>Where a skin given by name (<c>--skin northwind</c>) is looked for, in order.</summary>
-    public static IReadOnlyList<string> SkinSearchFolders =>
-        new[] { Path.Combine(Directory.GetCurrentDirectory(), "skins"), Path.Combine(AppContext.BaseDirectory, "skins") }
-            .Select(Path.GetFullPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+    /// <summary>Where <see cref="Load(string?)"/> looks for a skin given by name: skins\ next to the executable.
+    /// The CLI adds its own folders (--skins-dir, settings) through <see cref="LoadByName"/>.</summary>
+    public static IReadOnlyList<string> SkinSearchFolders => [Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "skins"))];
+
+    /// <summary>
+    /// Loads a skin by name only: "default" (or null) is built in; any other name is a folder with that name
+    /// in the first of <paramref name="searchFolders"/> that has it.
+    /// </summary>
+    public static Skin LoadByName(string? name, IReadOnlyList<string> searchFolders)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Equals("default", StringComparison.OrdinalIgnoreCase))
+            return Load(null);
+        if (name.IndexOfAny(['\\', '/', ':']) >= 0)
+            throw new ArgumentException(
+                $"'{name}' is a path; a skin is chosen by its folder name. Add the folder that contains it as a skins folder instead.", nameof(name));
+
+        var found = FindSkinFolders(searchFolders).FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (found.Folder == null)
+        {
+            var names = BuiltInSkins.Concat(FindSkinFolders(searchFolders).Select(s => s.Name));
+            throw new FileNotFoundException(
+                $"Skin '{name}' not found. Available: {string.Join(", ", names)}. Searched: {string.Join("; ", searchFolders)}.");
+        }
+        return Load(found.Folder);
+    }
 
     /// <summary>Names of the skin folders found in <see cref="SkinSearchFolders"/>.</summary>
     public static IReadOnlyList<string> AvailableSkins => FindSkinFolders(SkinSearchFolders).Select(s => s.Name).ToList();

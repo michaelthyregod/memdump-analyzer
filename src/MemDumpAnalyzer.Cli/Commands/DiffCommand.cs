@@ -1,6 +1,7 @@
 using System.CommandLine;
 using MemDumpAnalyzer.Core;
 using MemDumpAnalyzer.Core.Analysis;
+using MemDumpAnalyzer.Cli.Settings;
 using MemDumpAnalyzer.Reporting;
 using Spectre.Console;
 
@@ -10,19 +11,17 @@ public static class DiffCommand
 {
     public static Command Build()
     {
-        var baselineArg = new Argument<FileInfo>("baseline") { Description = "Baseline (earlier) .dmp file" };
-        var problemArg = new Argument<FileInfo>("problem") { Description = "Problem (later) .dmp file" };
+        var baselineArg = new Argument<string>("baseline") { Description = "Baseline (earlier) .dmp file: a path or a name in the dump folders" };
+        var problemArg = new Argument<string>("problem") { Description = "Problem (later) .dmp file: a path or a name in the dump folders" };
 
-        var outputOpt = new Option<DirectoryInfo?>("--output", "-o") { Description = "Output directory (default: ./report)" };
-        var formatOpt = new Option<string>("--format", "-f")
+        var outputOpt = new Option<DirectoryInfo?>("--output", "-o") { Description = "Output folder. Default: the outputDir setting, else .\\report" };
+        var formatOpt = new Option<string?>("--format", "-f")
         {
-            Description = "Comma-separated output formats",
-            DefaultValueFactory = _ => "html,json"
+            Description = $"Comma-separated formats: html, md, json. Default: the formats setting, else {Locations.DefaultFormats}"
         };
-        var topOpt = new Option<int>("--top")
+        var topOpt = new Option<int?>("--top")
         {
-            Description = "Number of rows shown per table in the diff report (all types are compared)",
-            DefaultValueFactory = _ => 100
+            Description = $"Rows per table in the diff report (all types are compared). Default: the top setting, else {Locations.DefaultTop}"
         };
 
         var skinOptions = new SkinOptions();
@@ -37,26 +36,31 @@ public static class DiffCommand
 
         cmd.SetAction(async (parseResult, cancellationToken) =>
         {
-            var baselineFile = parseResult.GetValue(baselineArg)!;
-            var problemFile = parseResult.GetValue(problemArg)!;
-            var outputDir = parseResult.GetValue(outputOpt) ?? new DirectoryInfo("./report");
-            var formats = (parseResult.GetValue(formatOpt) ?? "html,json")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var topN = parseResult.GetValue(topOpt);
+            var settings = Locations.LoadSettings();
+            if (settings == null) return;
 
-            foreach (var f in new[] { baselineFile, problemFile })
+            var outputDir = Locations.OutputDir(parseResult.GetValue(outputOpt), settings);
+            var formats = Locations.Formats(parseResult.GetValue(formatOpt), settings);
+            var topN = Locations.Top(parseResult.GetValue(topOpt), settings);
+
+            var found = new List<FileInfo>();
+            foreach (var given in new[] { parseResult.GetValue(baselineArg)!, parseResult.GetValue(problemArg)! })
             {
-                if (!f.Exists)
+                if (Locations.FindDump(given, settings) is not { } f)
                 {
-                    AnsiConsole.MarkupLine($"[red]File not found:[/] {Markup.Escape(f.FullName)}");
+                    AnsiConsole.MarkupLine($"[red]File not found:[/] {Markup.Escape(given)}");
+                    if (!Path.IsPathRooted(given))
+                        AnsiConsole.MarkupLine("  [grey]Also looked in:[/] " + Markup.Escape(string.Join("; ", Locations.DumpSearchFolders(settings))));
                     Environment.ExitCode = 1;
                     return;
                 }
+                found.Add(f);
             }
+            var (baselineFile, problemFile) = (found[0], found[1]);
 
             outputDir.Create();
             AnsiConsole.MarkupLine($"[bold blue]memdump-analyzer diff[/] — [yellow]{Markup.Escape(baselineFile.Name)}[/] vs [yellow]{Markup.Escape(problemFile.Name)}[/]");
-            var skin = skinOptions.Load(parseResult);
+            var skin = skinOptions.Load(parseResult, settings);
             if (skin == null) return;
 
             MemDumpAnalyzer.Core.Models.AnalysisResult? baselineResult = null;

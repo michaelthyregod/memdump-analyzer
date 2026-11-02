@@ -52,11 +52,13 @@ memdump-analyzer/
 │   └── MemDumpAnalyzer.Cli/
 │       ├── Program.cs
 │       ├── ErrorReporting.cs          # Actionable messages for dump-loading failures
-│       ├── SkinOptions.cs             # --skin / --prepared-for, shared by analyze and diff
+│       ├── SkinOptions.cs             # --skin / --skins-dir / --prepared-for, shared by analyze, diff, skins list
+│       ├── Settings/                  # AppSettings (JSON), SettingsStore (user + local file), SettingDefinitions, Locations (lookup order)
 │       └── Commands/
 │           ├── AnalyzeCommand.cs      # --known-assemblies option; auto-detects known-assemblies.txt
 │           ├── DiffCommand.cs
-│           └── SkinsCommand.cs        # skins list: built-in default + skin folders found now (none required)
+│           ├── SkinsCommand.cs        # skins list: built-in default + skin folders found now (none required)
+│           └── SettingsCommand.cs     # settings show|set|add|remove|reset [--local]
 ├── tests/
 │   └── MemDumpAnalyzer.Tests/
 │       ├── FindingEngineTests.cs
@@ -126,7 +128,8 @@ Every HTML/Markdown/PDF/JSON report contains:
 - **Single dump ≠ trend**: no leak findings from one dump (use `diff`); lock contention is never called a deadlock. Diff compares all types (`topN = int.MaxValue`), not the top N.
 - **Fragmentation** is free-object bytes / allocated range (what `!dumpheap -stat` lists as Free), not committed-vs-range.
 - **HTML template**: Scriban does not auto-escape — every text value must go through `| html.escape` (type names contain `<>`, heap strings contain arbitrary content).
-- **Skins** (`docs/skins.md`): every visual report takes a `Skin`; nothing in a renderer may hard-code a colour, font or title — add a colour token to `SkinColors.Defaults` instead. The skin is renderer-independent (an HTML-to-PDF switch would reuse it). Scriban gets the skin as plain strings (`skin_css`, `skin_title`, …), never the `Skin` object (no reflection). Only `default` is embedded; every other skin is a folder, loaded by path or by name from `skins\<name>` in the current folder or next to the exe (`SkinLoader.SkinSearchFolders`). The fictional `skins/northwind` is the example in the repo; company brand skins live outside the repo.
+- **Skins** (`docs/skins.md`): every visual report takes a `Skin`; nothing in a renderer may hard-code a colour, font or title — add a colour token to `SkinColors.Defaults` instead. The skin is renderer-independent (an HTML-to-PDF switch would reuse it). Scriban gets the skin as plain strings (`skin_css`, `skin_title`, …), never the `Skin` object (no reflection). Only `default` is embedded; every other skin is a folder chosen by name (`SkinLoader.LoadByName`) from the search folders `Locations.SkinSearchFolders` builds: `--skins-dir`, the `skinsDirs` setting, then `skins\` next to the exe (first wins). `--skin` takes names only. The fictional `skins/northwind` is the example in the repo; company brand skins live outside the repo.
+- **Settings** (`docs/usage.md` §5): `%APPDATA%\memdump-analyzer\settings.json` (default target of `settings` writes) and `memdump-analyzer.settings.json` in the current folder (`--local`, wins, warns it can be overwritten by a new version). Merged per setting; lists local-first; relative paths relative to the file. Only non-default values are stored and an empty file is deleted. Precedence everywhere: command line > local > user > default. Add a setting in `AppSettings`, `SettingDefinitions`, `SettingsStore.Load` and `Locations`, and document it in `docs/usage.md`.
 - **Report headings** come from `ReportHeadings` (title and sentence case written out by hand, so acronyms like GC stay right) via `skin.Heading(key)`; never type a section heading inline in a renderer.
 - **PDF fonts**: QuestPDF 2026.9 only knows fonts by the family name stored in the file (custom names are obsolete). `SkinFontResolver` registers skin font files, reads their PostScript name (`FontNameReader`) to find the family QuestPDF uses, and passes only available families plus the Liberation fallback.
 - **TechnicalDetails per finding**: `FindingEngine` builds rich multi-line preformatted blocks — blocked thread stacks with assembly names (`[AssemblyName]` suffix), thread pattern tables, LOH segment lists, etc.

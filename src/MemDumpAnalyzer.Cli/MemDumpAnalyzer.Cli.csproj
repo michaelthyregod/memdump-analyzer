@@ -23,6 +23,12 @@
 		<ProjectReference Include="..\MemDumpAnalyzer.Reporting\MemDumpAnalyzer.Reporting.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<!-- The repo's example skins next to the exe, as in the distribution zip (skins
+orthwind) -->
+		<None Include="..\..\skins\**\*" LinkBase="skins" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
 	<!--
 	  Single-exe build: dotnet publish -c Release -r win-x64 -p:SingleExe=true
 	  Native AOT can't link QuestPDF's native DLLs, so they are embedded as resources and extracted at

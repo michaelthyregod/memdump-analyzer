@@ -5,14 +5,16 @@ texts around them (title, company, prepared for/by, footer). Markdown gets the t
 JSON is data and is never skinned.
 
 ```bash
+MemDumpAnalyzer.Cli.exe skins list
 MemDumpAnalyzer.Cli.exe analyze dump.dmp --skin northwind --prepared-for "Example Customer A/S"
-MemDumpAnalyzer.Cli.exe analyze dump.dmp --skin C:\path\to\my-skin
-MemDumpAnalyzer.Cli.exe diff a.dmp b.dmp --skin C:\path\to\my-skin
+MemDumpAnalyzer.Cli.exe analyze dump.dmp --skins-dir D:\team-skins --skin acme
+MemDumpAnalyzer.Cli.exe diff a.dmp b.dmp --skin acme
 ```
 
 `default` (the original look) is built into the tool. Every other skin is a folder containing
-`skin.json`, given either as a path (`--skin C:\path\to\my-skin`) or by name: `--skin northwind` looks
-for `skins\northwind` in the current folder and then next to the executable.
+`skin.json`, chosen by its folder name. Skin folders are looked for in: the `--skins-dir` folders, the
+`skinsDirs` setting (`settings add skinsDirs <folder>`), then `skins\` next to the executable — the
+first folder with the name wins. See [usage.md](usage.md) for settings.
 
 [`skins/northwind`](../skins/northwind) is the example: a skin for a fictional company that uses every
 option. Copy the folder, rename it and edit `skin.json` to make your own — don't edit the example in

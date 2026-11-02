@@ -89,10 +89,16 @@ public sealed class Skin
     public string Color(string key) => Colors.TryGetValue(key, out var c) ? c : SkinColors.Defaults[key];
 
     public Skin WithPreparedFor(string? preparedFor) =>
-        string.IsNullOrWhiteSpace(preparedFor) ? this : new Skin
+        string.IsNullOrWhiteSpace(preparedFor) ? this : With(preparedFor, PreparedBy);
+
+    public Skin WithPreparedBy(string? preparedBy) =>
+        string.IsNullOrWhiteSpace(preparedBy) ? this : With(PreparedFor, preparedBy);
+
+    private Skin With(string? preparedFor, string? preparedBy) =>
+        new()
         {
             Name = Name, DisplayName = DisplayName, ReportTitle = ReportTitle, CompanyName = CompanyName,
-            PreparedBy = PreparedBy, PreparedFor = preparedFor, Footer = Footer, Colors = Colors,
+            PreparedBy = preparedBy, PreparedFor = preparedFor, Footer = Footer, Colors = Colors,
             BodyFonts = BodyFonts, HeadingFonts = HeadingFonts, MonoFonts = MonoFonts, FontFaces = FontFaces,
             Logo = Logo, LogoHeightMm = LogoHeightMm, HeadingWeight = HeadingWeight, HeadingCase = HeadingCase, FontLicense = FontLicense, Warnings = Warnings
         };
