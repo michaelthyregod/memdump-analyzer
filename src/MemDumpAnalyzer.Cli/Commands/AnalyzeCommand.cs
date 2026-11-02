@@ -97,32 +97,45 @@ public static class AnalyzeCommand
 
                 foreach (var fmt in formats)
                 {
-                    switch (fmt.ToLowerInvariant())
+                    try
                     {
-                        case "json":
-                            var jsonPath = baseName + ".json";
-                            await JsonReporter.WriteAsync(result, jsonPath, cancellationToken);
-                            AnsiConsole.MarkupLine($"  [green]✓[/] JSON → {Markup.Escape(jsonPath)}");
-                            break;
-                        case "md":
-                        case "markdown":
-                            var mdPath = baseName + ".md";
-                            await MarkdownReporter.WriteAsync(result, mdPath, cancellationToken);
-                            AnsiConsole.MarkupLine($"  [green]✓[/] Markdown → {Markup.Escape(mdPath)}");
-                            break;
-                        case "html":
-                            var htmlPath = baseName + ".html";
-                            await HtmlReporter.WriteAsync(result, htmlPath, cancellationToken);
-                            AnsiConsole.MarkupLine($"  [green]✓[/] HTML → {Markup.Escape(htmlPath)}");
-                            break;
-                        case "pdf":
-                            var pdfPath = baseName + ".pdf";
-                            PdfReporter.Write(result, pdfPath, cancellationToken);
-                            AnsiConsole.MarkupLine($"  [green]✓[/] PDF → {Markup.Escape(pdfPath)}");
-                            break;
-                        default:
-                            AnsiConsole.MarkupLine($"  [yellow]Unknown format:[/] {Markup.Escape(fmt)}");
-                            break;
+                        switch (fmt.ToLowerInvariant())
+                        {
+                            case "json":
+                                var jsonPath = baseName + ".json";
+                                await JsonReporter.WriteAsync(result, jsonPath, cancellationToken);
+                                AnsiConsole.MarkupLine($"  [green]✓[/] JSON → {Markup.Escape(jsonPath)}");
+                                break;
+                            case "md":
+                            case "markdown":
+                                var mdPath = baseName + ".md";
+                                await MarkdownReporter.WriteAsync(result, mdPath, cancellationToken);
+                                AnsiConsole.MarkupLine($"  [green]✓[/] Markdown → {Markup.Escape(mdPath)}");
+                                break;
+                            case "html":
+                                var htmlPath = baseName + ".html";
+                                await HtmlReporter.WriteAsync(result, htmlPath, cancellationToken);
+                                AnsiConsole.MarkupLine($"  [green]✓[/] HTML → {Markup.Escape(htmlPath)}");
+                                break;
+                            case "pdf":
+                                var pdfPath = baseName + ".pdf";
+                                PdfReporter.Write(result, pdfPath, cancellationToken);
+                                AnsiConsole.MarkupLine($"  [green]✓[/] PDF → {Markup.Escape(pdfPath)}");
+                                break;
+                            default:
+                                AnsiConsole.MarkupLine($"  [yellow]Unknown format:[/] {Markup.Escape(fmt)}");
+                                break;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        // One failing format must not lose the others (or the summary)
+                        AnsiConsole.MarkupLine($"  [red]✗ {Markup.Escape(fmt)} report failed:[/] {Markup.Escape(ex.Message)}");
+                        Environment.ExitCode = 1;
                     }
                 }
 

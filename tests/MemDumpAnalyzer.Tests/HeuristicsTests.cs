@@ -396,6 +396,26 @@ public class HeuristicsTests
     }
 
     [Fact]
+    public void PdfReporter_WritesAPdf()
+    {
+        // QuestPDF 2026.9 stopped using system fonts and threw on 'Arial', leaving a 0-byte file
+        var path = Path.Combine(Path.GetTempPath(), $"memdump-analyzer-test-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            var heap = new[] { new HeapTypeStats("System.String", 10, 1024, 1024, 0) };
+            PdfReporter.Write(MinimalResult(heap, []), path, TestContext.Current.CancellationToken);
+
+            var bytes = File.ReadAllBytes(path);
+            Assert.True(bytes.Length > 1000, $"PDF unexpectedly small: {bytes.Length} bytes");
+            Assert.Equal("%PDF"u8.ToArray(), bytes[..4]);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Reports_FlagIncompleteHeapAndExcludeDeadThreads()
     {
         var threads = new[]

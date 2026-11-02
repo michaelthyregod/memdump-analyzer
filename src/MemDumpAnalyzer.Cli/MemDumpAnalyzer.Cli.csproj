@@ -14,8 +14,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Spectre.Console" Version="0.57.2" />
-		<PackageReference Include="System.CommandLine" Version="3.0.0-preview.4.26230.115" />
+		<PackageReference Include="Spectre.Console" Version="0.57.3-alpha.0.29" />
+		<PackageReference Include="System.CommandLine" Version="3.0.0-rc.3.26522.148" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -67,6 +67,9 @@ dotnet build
 dotnet test
 ```
 
+- `global.json` pins the SDK (10.0.403, rolls forward to newer 10.0 feature bands, no previews) and selects **Microsoft.Testing.Platform** as the `dotnet test` runner — required by xunit v3 4.x on the .NET 10 SDK. CI reads the SDK from the same file.
+- Native AOT publish (`dotnet publish src/MemDumpAnalyzer.Cli -c Release -r win-x64`) needs `vswhere.exe` on PATH; it lives in `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer`, which Git Bash/PowerShell sessions may not include.
+
 ## Run
 
 ```bash
@@ -124,17 +127,18 @@ All projects build with `IsAotCompatible` + trim/AOT analyzers enabled — keep 
 - **JSON**: never use reflection-based `JsonSerializer.Serialize(obj, options)`. All report root types are registered in `ReportJsonContext` (source-generated, camelCase, string enums); add new root types there with `[JsonSerializable]`.
 - **Scriban**: reads the model graph via reflection at render time, which the trimmer can't see. `MemDumpAnalyzer.Reporting/ILLink.Descriptors.xml` (embedded resource) preserves all of `MemDumpAnalyzer.Core` — new model types are covered automatically. Pass the model via `scriptObj["r"] = result` (no reflection), not `Import(anonymousObject)`. Delegate `Import("name", Func<...>)` calls are fine; their IL2026 is suppressed on `HtmlReporter.Render`.
 - **Spectre.Console**: `AnsiConsole.WriteException` is not AOT compatible — print `Markup.Escape(ex.ToString())` instead.
-- One known residual warning at trimmed publish: IL2075 inside `QuestPDF.Drawing.Proxy.LayoutDebugging` (library-internal, layout-debugging path only).
+- Native AOT publish is free of trim/AOT warnings (verified 2026-11-02 with the package versions below). Only IL3058 notes remain for referenced assemblies not annotated as AOT-compatible (ClrMD and its dependencies, Scriban).
 
 ## Key Dependencies
 
 | Package | Purpose |
 |---|---|
-| `Microsoft.Diagnostics.Runtime` 4.0.x (ClrMD) | Read .dmp files |
-| `System.CommandLine` 3.0.0-preview.4 | CLI argument parsing |
-| `Scriban` 6.x | HTML report templating |
-| `QuestPDF` 2026.x | PDF generation (Community license) |
-| `Spectre.Console` | Rich terminal output |
+| `Microsoft.Diagnostics.Runtime` 4.2.x (ClrMD) | Read .dmp files |
+| `System.CommandLine` 3.0.0-rc.3 | CLI argument parsing |
+| `Scriban` 7.x | HTML report templating |
+| `QuestPDF` 2026.x | PDF generation (Community license). Since 2026.9 system fonts are off and a missing font throws; `PdfReporter` turns `UseSystemFonts` on and `ThrowOnMissingFontFamilies` off to keep Arial/Courier New with a fallback |
+| `Spectre.Console` 0.57.3-alpha | Rich terminal output |
+| `xunit.v3` 4.x + `xunit.runner.visualstudio` 4.x | Tests, run via Microsoft.Testing.Platform (see `global.json`) |
 
 ## ClrMD v3.1 API Notes
 
@@ -164,7 +168,7 @@ These properties changed from v2 to v3 — use these:
 - `TemplateContext { LoopLimit = 0, LimitToString = 0 }` required for large dumps — `LimitToString` defaults to 1 MiB and silently truncates the rendered output with `...`
 - `array.limit N` in template loops for display caps (threads table: 300, heap types: 500, segments: 200)
 
-## System.CommandLine 3.0-preview API Notes
+## System.CommandLine 3.0 API Notes
 
 Breaking changes from 2.x beta:
 - `Argument<T>(string name)` — single name arg

@@ -13,6 +13,11 @@ public static class PdfReporter
         cancellationToken.ThrowIfCancellationRequested();
 
         QuestPDF.Settings.License = LicenseType.Community;
+        // QuestPDF 2026.9 stopped using system fonts and throws on a missing family. Keep the pre-2026.9
+        // behaviour: use the installed Arial/Courier New, and fall back to another font instead of failing
+        // on machines without them (e.g. Linux CI).
+        QuestPDF.Settings.UseSystemFonts = true;
+        QuestPDF.Settings.ThrowOnMissingFontFamilies = false;
 
         Document.Create(container =>
         {
