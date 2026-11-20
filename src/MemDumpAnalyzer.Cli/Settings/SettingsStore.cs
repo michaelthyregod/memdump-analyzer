@@ -84,6 +84,10 @@ public sealed class SettingsStore(string userPath, string localPath)
             local?.Top is { } lt ? (lt, SettingSource.Local)
             : user?.Top is { } ut ? (ut, SettingSource.User)
             : (null, SettingSource.Default);
+        (bool? GcRoots, SettingSource Source) gcRoots =
+            local?.GcRoots is { } lg ? (lg, SettingSource.Local)
+            : user?.GcRoots is { } ug ? (ug, SettingSource.User)
+            : (null, SettingSource.Default);
 
         return new EffectiveSettings
         {
@@ -94,7 +98,8 @@ public sealed class SettingsStore(string userPath, string localPath)
             Formats = formats,
             OutputDir = (ResolvePath(outputDir.Value, outputDir.Source), outputDir.Source),
             KnownAssemblies = (ResolvePath(known.Value, known.Source), known.Source),
-            Top = top
+            Top = top,
+            GcRoots = gcRoots
         };
     }
 }
@@ -110,6 +115,7 @@ public sealed class EffectiveSettings
     public required (string? Value, SettingSource Source) OutputDir { get; init; }
     public required (string? Value, SettingSource Source) KnownAssemblies { get; init; }
     public required (int? Value, SettingSource Source) Top { get; init; }
+    public (bool? Value, SettingSource Source) GcRoots { get; init; } = (null, SettingSource.Default);
 
     /// <summary>The settings files couldn't be read: the tool still runs on its defaults.</summary>
     public static EffectiveSettings Defaults => new()

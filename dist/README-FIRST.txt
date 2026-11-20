@@ -56,4 +56,6 @@ Good to know
 - The PDF report uses QuestPDF, whose licence is not open source (see THIRD-PARTY-NOTICES.md); its
   native parts are unpacked to %LOCALAPPDATA%\memdump-analyzer\native on first use. HTML, Markdown
   and JSON don't use it.
+- The progress line shows the current step. A dump with thousands of threads takes longer in
+  "Analysing … threads"; --gc-roots (off by default) is much slower on such dumps.
 - Exit code 0 = success, 1 = error.

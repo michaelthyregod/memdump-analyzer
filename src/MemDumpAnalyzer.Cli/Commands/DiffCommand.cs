@@ -24,6 +24,11 @@ public static class DiffCommand
             Description = $"Rows per table in the diff report (all types are compared). Default: the top setting, else {Locations.DefaultTop}"
         };
 
+        var gcRootsOpt = new Option<bool?>("--gc-roots")
+        {
+            Description = "Also sample GC roots for the largest types (slow on dumps with many threads). Default: the gcRoots setting, else off."
+        };
+
         var skinOptions = new SkinOptions();
 
         var cmd = new Command("diff", "Compare two memory dumps");
@@ -32,6 +37,7 @@ public static class DiffCommand
         cmd.Add(outputOpt);
         cmd.Add(formatOpt);
         cmd.Add(topOpt);
+        cmd.Add(gcRootsOpt);
         skinOptions.AddTo(cmd);
 
         cmd.SetAction(async (parseResult, cancellationToken) =>
@@ -42,6 +48,7 @@ public static class DiffCommand
             var outputDir = Locations.OutputDir(parseResult.GetValue(outputOpt), settings);
             var formats = Locations.Formats(parseResult.GetValue(formatOpt), settings);
             var topN = Locations.Top(parseResult.GetValue(topOpt), settings);
+            var gcRoots = Locations.GcRoots(parseResult.GetValue(gcRootsOpt), settings);
 
             var found = new List<FileInfo>();
             foreach (var given in new[] { parseResult.GetValue(baselineArg)!, parseResult.GetValue(problemArg)! })
@@ -73,12 +80,22 @@ public static class DiffCommand
                 {
                     await AnsiConsole.Progress().StartAsync(async ctx =>
                     {
-                        var t1 = ctx.AddTask("[green]Analyzing baseline...[/]");
-                        var t2 = ctx.AddTask("[green]Analyzing problem dump...[/]");
+                        var s1 = new StepProgress(ctx.AddTask("[green]Baseline: waiting[/]"), "Baseline");
+                        var s2 = new StepProgress(ctx.AddTask("[green]Problem: waiting[/]"), "Problem");
 
-                        await Task.Run(() => { baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, int.MaxValue, cancellationToken: cancellationToken); t1.Value = 100; }, cancellationToken);
+                        await Task.Run(() =>
+                        {
+                            baselineResult = AnalysisEngine.Analyze(baselineFile.FullName, int.MaxValue,
+                                cancellationToken: cancellationToken, includeGcRoots: gcRoots, progress: s1);
+                            s1.Done();
+                        }, cancellationToken);
                         currentDump = problemFile.Name;
-                        await Task.Run(() => { problemResult = AnalysisEngine.Analyze(problemFile.FullName, int.MaxValue, cancellationToken: cancellationToken); t2.Value = 100; }, cancellationToken);
+                        await Task.Run(() =>
+                        {
+                            problemResult = AnalysisEngine.Analyze(problemFile.FullName, int.MaxValue,
+                                cancellationToken: cancellationToken, includeGcRoots: gcRoots, progress: s2);
+                            s2.Done();
+                        }, cancellationToken);
                     });
                 }
                 catch (OperationCanceledException)

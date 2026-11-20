@@ -30,6 +30,12 @@ public static class AnalyzeCommand
                           "else known-assemblies.txt in the current folder, else next to the exe."
         };
 
+        var gcRootsOpt = new Option<bool?>("--gc-roots")
+        {
+            Description = "Also sample GC roots for the largest types. Slow on dumps with many threads " +
+                          "(about 0.6 s per thread). Default: the gcRoots setting, else off."
+        };
+
         var skinOptions = new SkinOptions();
 
         var cmd = new Command("analyze", "Analyze a single memory dump");
@@ -38,6 +44,7 @@ public static class AnalyzeCommand
         cmd.Add(formatOpt);
         cmd.Add(topOpt);
         cmd.Add(knownAssembliesOpt);
+        cmd.Add(gcRootsOpt);
         skinOptions.AddTo(cmd);
 
         cmd.SetAction(async (parseResult, cancellationToken) =>
@@ -50,6 +57,7 @@ public static class AnalyzeCommand
             var formats    = Locations.Formats(parseResult.GetValue(formatOpt), settings);
             var topN       = Locations.Top(parseResult.GetValue(topOpt), settings);
             var knownFile  = Locations.FindKnownAssemblies(parseResult.GetValue(knownAssembliesOpt)?.FullName, settings);
+            var gcRoots    = Locations.GcRoots(parseResult.GetValue(gcRootsOpt), settings);
 
             var dumpFile = Locations.FindDump(dumpGiven, settings);
             if (dumpFile == null)
@@ -80,13 +88,14 @@ public static class AnalyzeCommand
                     await AnsiConsole.Progress()
                         .StartAsync(async ctx =>
                         {
-                            var task = ctx.AddTask("[green]Loading and analyzing dump...[/]", maxValue: 100);
-                            task.Value = 5;
+                            var task = ctx.AddTask("[green]Starting[/]");
+                            var steps = new StepProgress(task);
 
                             await Task.Run(() =>
                             {
-                                result = AnalysisEngine.Analyze(dumpFile.FullName, topN, knownFile, cancellationToken);
-                                task.Value = 100;
+                                result = AnalysisEngine.Analyze(dumpFile.FullName, topN, knownFile, cancellationToken,
+                                    includeGcRoots: gcRoots, progress: steps);
+                                steps.Done();
                             }, cancellationToken);
                         });
                 }

@@ -40,6 +40,14 @@ MemDumpAnalyzer.Cli.exe analyze w3wp.dmp --known-assemblies my-filter.txt --top 
 | `--skin` | `-s` | Skin by name — see below | `skin` setting, else `default` |
 | `--skins-dir` | | Extra folder with skins; repeat for more | `skinsDirs` setting |
 | `--prepared-for` | | "Prepared for" line, e.g. the customer | — |
+| `--gc-roots` | | Also sample GC roots for the largest types (see below) | `gcRoots` setting, else off |
+
+While it runs, the progress line shows the current step ("Walking the heap", "Analysing 7,539 threads" …).
+
+**`--gc-roots` is slow on dumps with many threads.** It checks whether sampled objects of the largest
+types are themselves GC roots, which means reading every thread's stack roots: about 0.6 s per thread,
+so over an hour for a dump with 7,500 threads. It rarely finds anything, which is why it's off by
+default; the rest of the report is the same without it.
 
 ## 3. Compare two dumps
 
@@ -106,6 +114,7 @@ MemDumpAnalyzer.Cli.exe settings reset                                   :: ever
 | `knownAssemblies` | Assembly filter file when `--known-assemblies` isn't given |
 | `top` | Heap types listed (analyze) / rows per table (diff) |
 | `dumpsDirs` | Folders searched for a dump given by name (list) |
+| `gcRoots` | `true` to sample GC roots by default (slow with many threads) |
 
 Lists combine: entries from the local file come first, then the per-user ones. Relative paths in a
 settings file are relative to that file's folder.

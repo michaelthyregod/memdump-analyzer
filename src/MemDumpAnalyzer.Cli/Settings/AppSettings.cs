@@ -33,10 +33,13 @@ public sealed class AppSettings
     /// <summary>Folders searched for a dump given by name only, before mem-dumps\ next to the exe.</summary>
     public List<string>? DumpsDirs { get; set; }
 
+    /// <summary>Sample GC roots for the largest types (slow on dumps with many threads). Default off.</summary>
+    public bool? GcRoots { get; set; }
+
     [JsonIgnore]
     public bool IsEmpty =>
         SkinsDirs is not { Count: > 0 } && Skin is null && PreparedBy is null && Formats is not { Count: > 0 } &&
-        OutputDir is null && KnownAssemblies is null && Top is null && DumpsDirs is not { Count: > 0 };
+        OutputDir is null && KnownAssemblies is null && Top is null && DumpsDirs is not { Count: > 0 } && GcRoots is null;
 }
 
 [JsonSourceGenerationOptions(

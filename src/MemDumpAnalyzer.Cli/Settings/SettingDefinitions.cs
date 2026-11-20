@@ -50,6 +50,13 @@ public static class SettingDefinitions
             v => int.TryParse(v[0], out var n) && n > 0 ? null : "top must be a whole number above 0.",
             v => v[0] == Locations.DefaultTop.ToString()),
 
+        new("gcRoots", IsList: false, IsPath: false, "false",
+            "Sample GC roots for the largest types (slow: ~0.6 s per thread, can take long on dumps with many threads)",
+            s => s.GcRoots is { } g ? [g ? "true" : "false"] : null,
+            (s, v) => s.GcRoots = v == null ? null : bool.Parse(v[0]),
+            v => bool.TryParse(v[0], out _) ? null : "gcRoots must be true or false.",
+            v => bool.TryParse(v[0], out var b) && !b),
+
         new("dumpsDirs", IsList: true, IsPath: true, "(none; mem-dumps\\ next to the exe is always searched last)",
             "Folders searched for a dump given by name, before mem-dumps\\ next to the exe",
             s => s.DumpsDirs, (s, v) => s.DumpsDirs = v, _ => null, v => v.Count == 0),

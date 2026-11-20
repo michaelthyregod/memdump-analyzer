@@ -77,4 +77,7 @@ public static class Locations
 
     public static int Top(int? commandLine, EffectiveSettings settings) =>
         commandLine ?? settings.Top.Value ?? DefaultTop;
+
+    public static bool GcRoots(bool? commandLine, EffectiveSettings settings) =>
+        commandLine ?? settings.GcRoots.Value ?? false;
 }

@@ -4,10 +4,15 @@ using MemDumpAnalyzer.Core.Models;
 namespace MemDumpAnalyzer.Core.Analysis;
 
 /// <summary>
-/// Collects GC-root samples for the largest types. A single dump cannot prove a leak — that takes
-/// two dumps a minute or so apart and the <c>diff</c> command — so the results are evidence attached
-/// to other findings, not findings of their own.
+/// The largest types (over 1 MB), optionally with GC-root samples. A single dump cannot prove a leak —
+/// that takes two dumps a minute or so apart and the <c>diff</c> command — so the results are evidence
+/// attached to other findings, not findings of their own.
 /// </summary>
+/// <remarks>
+/// Root sampling is opt-in (<c>--gc-roots</c>): it enumerates every root including each thread's stack
+/// roots, which ClrMD does at ~0.6 s per thread — over an hour on a 7,500-thread dump — and it only
+/// reports a sampled object when that object is itself a root, which is rarely the case.
+/// </remarks>
 public static class LeakDetector
 {
     private const int MaxSuspects = 20;
@@ -17,6 +22,7 @@ public static class LeakDetector
         ClrRuntime runtime,
         HeapWalkResult walk,
         IReadOnlyList<HeapTypeStats> heapStats,
+        bool includeGcRoots = false,
         CancellationToken cancellationToken = default)
     {
         var suspects = heapStats
@@ -29,23 +35,26 @@ public static class LeakDetector
 
         // Map directly-rooted objects to their root kind (an object is only matched when it is itself a root)
         var rootsByObject = new Dictionary<ulong, string>();
-        try
+        if (includeGcRoots)
         {
-            foreach (var root in runtime.Heap.EnumerateRoots())
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var addr = root.Object.Address;
-                if (!rootsByObject.ContainsKey(addr))
-                    rootsByObject[addr] = $"{root.RootKind}: {root.Address:x16}";
+                foreach (var root in runtime.Heap.EnumerateRoots())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var addr = root.Object.Address;
+                    if (!rootsByObject.ContainsKey(addr))
+                        rootsByObject[addr] = $"{root.RootKind}: {root.Address:x16}";
+                }
             }
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch
-        {
-            // Root enumeration can fail on corrupt or mid-GC dumps; proceed without roots
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Root enumeration can fail on corrupt or mid-GC dumps; proceed without roots
+            }
         }
 
         var results = new List<LeakSuspect>();

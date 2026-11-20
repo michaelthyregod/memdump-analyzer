@@ -161,6 +161,21 @@ public class SettingsTests : IDisposable
         Assert.False(File.Exists(_store.UserPath));
     }
 
+    [Fact]
+    public void GcRoots_OffByDefault_TrueIsStored_FalseRemovesIt_CommandLineWins()
+    {
+        Assert.False(Locations.GcRoots(null, _store.Load()));
+
+        Assert.Equal(0, Run("set", "gcRoots", "true"));
+        Assert.True(_store.Read(local: false)!.GcRoots);
+        Assert.True(Locations.GcRoots(null, _store.Load()));
+        Assert.False(Locations.GcRoots(false, _store.Load()));            // --gc-roots false beats the setting
+
+        Assert.Equal(1, Run("set", "gcRoots", "sometimes"));
+        Assert.Equal(0, Run("set", "gcRoots", "false"));                  // the default → nothing stored
+        Assert.False(File.Exists(_store.UserPath));
+    }
+
     // ── Lookups ──────────────────────────────────────────────────────────────
 
     [Fact]
