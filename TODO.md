@@ -42,6 +42,16 @@ Build the section list once (like `ReportHeadings`) so HTML, PDF and Markdown sh
    - whether hidden assemblies should still appear, collapsed under their group;
    - how findings use it (e.g. lock contention inside Sitecore vs. inside custom code).
 
+## Analysis
+
+- **Retention paths for the largest types** (replacement for the old GC-root sampling, now opt-in via
+  `--gc-roots`). Show *who keeps* a big object alive — the chain object ← owner ← … ← static field,
+  handle or thread — like WinDbg `!gcroot`, which is what explains a leak or an oversized cache. The old
+  sampling only matched objects that were themselves roots (almost never) and walked every thread's
+  stack roots (~0.6 s per thread, over an hour on a 7,500-thread dump). Make it bounded: a few sample
+  objects of the top type(s) only, handle and static roots before stack roots, a time limit with a
+  clear "partial" note, and opt-in or limited by default. ClrMD has building blocks for this (GCRoot).
+
 ## Follow-ups
 
 - Re-enable the GitHub Actions workflow (disabled manually since March 2026), then run it on `main`.
