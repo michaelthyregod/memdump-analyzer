@@ -109,15 +109,18 @@ Example — hide all Sitecore but surface one specific assembly:
 
 ## Report Sections
 
-Every HTML/Markdown/PDF/JSON report contains:
-1. Executive Summary (metadata + health score)
-2. Findings — severity-ordered, each with Summary, Explanation, Evidence, Recommendation, and **full** TechnicalDetails (complete thread stacks, no truncation)
-3. Memory Overview
-4. Top Memory Consumers
-5. Thread Analysis (grouped by stack pattern with wait-reason detection)
-6. GC Health
-7. Findings Detail
-8. **Application Code Hotspots** — assemblies not suppressed by known-assemblies.txt, ranked by thread count with top methods
+The order, anchors and cross-links live in `ReportLayout` (shared by HTML, Markdown and PDF; conclusions first, raw data last). Optional sections (hotspots, duplicate strings, findings detail) are left out when empty, and the numbering closes up:
+1. Executive Summary (metadata + health score), followed by the **contents** list: links in HTML/Markdown, clickable entries with page numbers in the PDF (QuestPDF `Section`/`SectionLink`)
+2. Findings — short and severity-ordered (summary + recommendation), each linking down to its detail and to the related section (`ReportLayout.RelatedSection`)
+3. Thread Analysis (grouped by stack pattern with wait-reason detection; patterns have anchors `pattern-N`)
+4. **Application Code Hotspots** — assemblies not suppressed by known-assemblies.txt, ranked by thread count with top methods, linking to the thread patterns they appear in
+5. Memory Overview
+6. Top Memory Consumers
+7. Duplicate Strings
+8. GC Health
+9. Findings Detail — Explanation, Evidence, Recommendation and **full** TechnicalDetails (complete thread stacks, no truncation), linking back to the short entry
+
+Every section has a "↑ Contents" link. JSON has no sections; its shape is unchanged.
 
 ## Key Design Decisions
 

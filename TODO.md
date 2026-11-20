@@ -20,18 +20,9 @@ Open decisions and follow-ups. Move an item to a GitHub issue when work on it st
 
 ## Report structure (feedback from first users)
 
-Build the section list once (like `ReportHeadings`) so HTML, PDF and Markdown share the order and links.
+Items 1–3 (index of sections, conclusions-first order, cross-links) are done: `ReportLayout`.
 
-1. **Index of sections** at the top: linked table of contents in HTML, clickable entries with page
-   numbers in the PDF (QuestPDF sections and section links), a list of links in Markdown.
-2. **Reorder the sections** so the conclusions come first and raw data last. Proposal: summary →
-   findings (short) → thread patterns → application code hotspots → memory (overview, top consumers,
-   duplicate strings) → GC health → details/appendix (full findings with technical details, thread list).
-3. **Cross-links between sections:** findings link down to their detailed explanation and to related
-   sections (e.g. lock contention → the thread pattern, LOH → memory); hotspots link to the threads and
-   stacks they appear in and back to the findings; a "back to top" link per section.
-
-4. **Hotspots: say who can change the code** (idea phase — needs to be made concrete). Today the
+- **Hotspots: say who can change the code** (idea phase — needs to be made concrete). Today the
    assembly filter only hides or shows. Instead, mark each hotspot with who owns it, e.g. *your code*,
    *platform* (`Sitecore.*`), *third party* (`Microsoft.ApplicationInsights.*`, `StackExchange.Redis`),
    *.NET framework*, so a reader sees at once that a platform hotspot can't be fixed in their own code

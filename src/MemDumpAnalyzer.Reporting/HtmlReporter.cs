@@ -47,6 +47,19 @@ public static class HtmlReporter
             headings[key] = skin.Heading(key);
         scriptObj["headings"] = headings;
 
+        // Structure shared with the PDF and Markdown reports (ReportLayout): contents and cross-links
+        var sections = new ScriptArray();
+        foreach (var section in ReportLayout.SectionsFor(result))
+            sections.Add(new ScriptObject { ["key"] = section.Key, ["anchor"] = section.Anchor, ["title"] = skin.Heading(section.Key) });
+        scriptObj["sections"] = sections;
+
+        var present = ReportLayout.SectionsFor(result).Select(x => x.Key).ToHashSet();
+        string? Related(string id) => ReportLayout.RelatedSection(id) is { } key && present.Contains(key) ? key : null;
+        scriptObj.Import("related_anchor", new Func<string, string>(id => Related(id) is { } key ? ReportLayout.Anchor(key) : ""));
+        scriptObj.Import("related_title", new Func<string, string>(id => Related(id) is { } key ? skin.Heading(key) : ""));
+        scriptObj.Import("hotspot_patterns", new Func<string, IEnumerable<int>>(assembly =>
+            ReportLayout.PatternsWithAssembly(result, assembly).Select(i => i + 1).ToList()));
+
         scriptObj.Import("format_bytes", new Func<long, string>(FormatBytes));
         scriptObj.Import("severity_class", new Func<Severity, string>(s => s switch
         {

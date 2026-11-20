@@ -21,7 +21,7 @@ public static class PdfReporter
         var fonts = SkinFontResolver.ForPdf(skin);
 
         string primary = skin.Color("primary"), accent = skin.Color("accent"), muted = skin.Color("muted"),
-               onPrimary = skin.Color("onPrimary"), critical = skin.Color("critical");
+               onPrimary = skin.Color("onPrimary"), critical = skin.Color("critical"), subtle = skin.Color("subtle");
 
         Document.Create(container =>
         {
@@ -60,100 +60,135 @@ public static class PdfReporter
                 page.Content().Column(col =>
                 {
                     col.Spacing(8);
+                    var sections = ReportLayout.SectionsFor(r);
+                    var present = sections.Select(s => s.Key).ToHashSet();
+                    int number = 0;
 
-                    // Executive summary
-                    col.Item().Text($"1. {skin.Heading("executive_summary")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
-                    col.Item().Table(t =>
+                    foreach (var section in sections)
                     {
-                        t.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
-                        AddRow(t, "Capture time", r.CaptureTime.ToString("yyyy-MM-dd HH:mm:ss") + " UTC");
-                        AddRow(t, "Dump size", FormatBytes(r.DumpFileSizeBytes));
-                        AddRow(t, "AppDomain", r.AppDomainName);
-                        AddRow(t, "OS", r.OsVersion);
-                        AddRow(t, "Health score", $"{r.HealthScore}/100");
-                        if (skin.PreparedFor != null) AddRow(t, "Prepared for", skin.PreparedFor);
-                        if (skin.PreparedBy != null) AddRow(t, "Prepared by", skin.PreparedBy);
-                        if (!r.HeapWalkComplete)
-                            AddRow(t, "Heap data", "Incomplete — dump captured while a GC was running");
-                    });
-
-                    // Findings
-                    col.Item().Text($"2. {skin.Heading("findings")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
-                    foreach (var f in r.Findings.Take(15))
-                    {
-                        col.Item().Background(SeverityBackground(skin, f.Severity)).BorderLeft(3).BorderColor(SeverityColor(skin, f.Severity)).Padding(6).Column(fc =>
+                        number++;
+                        // Heading = link target; a small link back to the contents on the right
+                        col.Item().Section(section.Anchor).PaddingTop(number == 1 ? 0 : 6).Row(row =>
                         {
-                            fc.Item().Text($"[{f.Severity.ToString().ToUpper()}] {f.Summary}").Bold();
-                            fc.Item().Text(f.Explanation).FontSize(9).FontColor(muted);
-                            if (f.Evidence != null)
-                                fc.Item().Text($"Evidence: {f.Evidence}").FontSize(8).FontColor(muted);
-                            if (f.Recommendation != null)
-                                fc.Item().PaddingTop(3).Text($"Recommendation: {f.Recommendation}").FontSize(9).Italic().FontColor(accent);
-                            if (f.TechnicalDetails != null && f.TechnicalDetails.Count > 0)
+                            row.RelativeItem().Text($"{number}. {skin.Heading(section.Key)}")
+                                .FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                            if (section.Key != "executive_summary")
+                                row.AutoItem().AlignBottom().SectionLink(ReportLayout.ContentsAnchor)
+                                    .Text($"↑ {skin.Heading("contents")}").FontSize(8).FontColor(subtle);
+                        });
+
+                        switch (section.Key)
+                        {
+                            case "executive_summary": Summary(col); Contents(col); break;
+                            case "findings": Findings(col); break;
+                            case "thread_analysis": Threads(col); break;
+                            case "application_code_hotspots": Hotspots(col); break;
+                            case "memory_overview": MemoryOverview(col); break;
+                            case "top_memory_consumers": TopConsumers(col); break;
+                            case "duplicate_strings": DuplicateStrings(col); break;
+                            case "gc_health": GcHealth(col); break;
+                            case "findings_detail": FindingsDetail(col); break;
+                        }
+                    }
+
+                    void Summary(ColumnDescriptor c)
+                    {
+                        c.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cd => { cd.RelativeColumn(); cd.RelativeColumn(); });
+                            AddRow(t, "Capture time", r.CaptureTime.ToString("yyyy-MM-dd HH:mm:ss") + " UTC");
+                            AddRow(t, "Dump size", FormatBytes(r.DumpFileSizeBytes));
+                            AddRow(t, "AppDomain", r.AppDomainName);
+                            AddRow(t, "OS", r.OsVersion);
+                            AddRow(t, "Health score", $"{r.HealthScore}/100");
+                            if (skin.PreparedFor != null) AddRow(t, "Prepared for", skin.PreparedFor);
+                            if (skin.PreparedBy != null) AddRow(t, "Prepared by", skin.PreparedBy);
+                            if (!r.HeapWalkComplete)
+                                AddRow(t, "Heap data", "Incomplete — dump captured while a GC was running");
+                        });
+                    }
+
+                    // Clickable contents with page numbers (QuestPDF sections)
+                    void Contents(ColumnDescriptor c)
+                    {
+                        c.Item().Section(ReportLayout.ContentsAnchor).PaddingTop(6).Background(skin.Color("stripe")).Padding(8).Column(toc =>
+                        {
+                            toc.Spacing(2);
+                            toc.Item().Text(skin.Heading("contents")).FontSize(11).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                            int n = 0;
+                            foreach (var s in sections)
                             {
-                                fc.Item().PaddingTop(4)
-                                    .Background(skin.Color("codeBackground")).Padding(5)
-                                    .Text(string.Join("\n", f.TechnicalDetails))
-                                    .FontSize(7).FontColor(skin.Color("codeText"))
-                                    .FontFamily(fonts.Mono);
+                                n++;
+                                TocLine(toc, $"{n}. {skin.Heading(s.Key)}", s.Anchor, indent: 0);
+                                if (s.Key == "findings")
+                                    for (int i = 0; i < r.Findings.Count; i++)
+                                        TocLine(toc, $"[{r.Findings[i].Severity.ToString().ToUpper()}] {r.Findings[i].Summary}", ReportLayout.FindingAnchor(i), indent: 14);
                             }
                         });
                     }
 
-                    // Memory overview
-                    col.Item().Text($"3. {skin.Heading("memory_overview")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
-                    col.Item().Table(t =>
+                    void TocLine(ColumnDescriptor toc, string text, string anchor, float indent)
                     {
-                        t.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
-                        AddRow(t, "Total heap", FormatBytes(r.GcStats.TotalHeapBytes));
-                        AddRow(t, "Gen0", FormatBytes(r.GcStats.Gen0Bytes));
-                        AddRow(t, "Gen1", FormatBytes(r.GcStats.Gen1Bytes));
-                        AddRow(t, "Gen2", FormatBytes(r.GcStats.Gen2Bytes));
-                        AddRow(t, "LOH", FormatBytes(r.GcStats.LohBytes));
-                        AddRow(t, "LOH fragmentation", $"{r.GcStats.LohFragmentationPercent:F1}% ({FormatBytes(r.GcStats.LohFreeBytes)} free)");
-                        AddRow(t, "Gen2 fragmentation", $"{r.GcStats.Gen2FragmentationPercent:F1}% ({FormatBytes(r.GcStats.Gen2FreeBytes)} free)");
-                    });
+                        toc.Item().PaddingLeft(indent).SectionLink(anchor).Row(row =>
+                        {
+                            row.RelativeItem().Text(text).FontSize(indent > 0 ? 8 : 9).FontColor(accent);
+                            row.ConstantItem(30).AlignRight().Text(t => t.BeginPageNumberOfSection(anchor).FontSize(8).FontColor(subtle));
+                        });
+                    }
 
-                    // Top consumers
-                    col.Item().Text($"4. {skin.Heading("top_memory_consumers")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
-                    col.Item().Table(t =>
+                    void Findings(ColumnDescriptor c)
                     {
-                        t.ColumnsDefinition(c =>
+                        if (r.Findings.Count == 0)
                         {
-                            c.RelativeColumn(4);
-                            c.RelativeColumn(2);
-                            c.RelativeColumn(2);
-                        });
-                        t.Header(h =>
-                        {
-                            h.Cell().Background(primary).Padding(4).Text("Type").FontColor(onPrimary).Bold();
-                            h.Cell().Background(primary).Padding(4).Text("Instances").FontColor(onPrimary).Bold();
-                            h.Cell().Background(primary).Padding(4).Text("Size").FontColor(onPrimary).Bold();
-                        });
-                        foreach (var ht in r.HeapTypes.Take(25))
-                        {
-                            t.Cell().Padding(3).Text(ht.TypeName).FontSize(8);
-                            t.Cell().Padding(3).Text($"{ht.InstanceCount:N0}").FontSize(8);
-                            t.Cell().Padding(3).Text(FormatBytes(ht.TotalSizeBytes)).FontSize(8);
+                            c.Item().Text("No significant findings — heap looks healthy!").FontColor(skin.Color("success")).Bold();
+                            return;
                         }
-                    });
+                        for (int i = 0; i < r.Findings.Count; i++)
+                        {
+                            var f = r.Findings[i];
+                            var index = i;
+                            c.Item().Section(ReportLayout.FindingAnchor(i)).Background(SeverityBackground(skin, f.Severity))
+                                .BorderLeft(3).BorderColor(SeverityColor(skin, f.Severity)).Padding(6).Column(fc =>
+                            {
+                                fc.Item().Text($"[{f.Severity.ToString().ToUpper()}] {f.Summary}").Bold();
+                                if (f.Recommendation != null)
+                                    fc.Item().PaddingTop(3).Text($"Recommendation: {f.Recommendation}").FontSize(9).Italic().FontColor(accent);
+                                Links(fc, f, index, detail: false);
+                            });
+                        }
+                    }
 
-                    // Application hotspots
-                    if (r.ApplicationHotspots.Count > 0)
+                    void Threads(ColumnDescriptor c)
                     {
-                        col.Item().Text($"5. {skin.Heading("application_code_hotspots")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
-                        col.Item().Text(
+                        var alive = r.Threads.Where(t => t.IsAlive).ToList();
+                        c.Item().Text($"Live: {alive.Count}  |  Dead (not analyzed): {r.Threads.Count - alive.Count}  |  Waiting/blocked: {alive.Count(t => t.BlockingReason != null)}");
+                        if (r.ThreadPool is { } tp)
+                            c.Item().Text($"Thread pool: active {tp.ActiveWorkerThreads}, idle {tp.IdleWorkerThreads}, min {tp.MinThreads}, max {tp.MaxThreads}  |  CPU at capture (system-wide): {tp.CpuUtilization}%");
+                        c.Item().PaddingTop(4).Text(skin.Heading("thread_patterns")).FontSize(11).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
+                        for (int i = 0; i < Math.Min(r.ThreadGroups.Count, 20); i++)
+                        {
+                            var g = r.ThreadGroups[i];
+                            var topFrame = g.RepresentativeStack.FirstOrDefault(f => !f.StartsWith('[')) ?? g.RepresentativeStack.FirstOrDefault() ?? "";
+                            c.Item().Section(ReportLayout.PatternAnchor(i))
+                                .Text($"#{i + 1}  {g.ThreadCount,5:N0} threads ({g.Percentage:F1}%) — {g.WaitReason ?? "running"} — {topFrame}").FontSize(8);
+                        }
+                    }
+
+                    void Hotspots(ColumnDescriptor c)
+                    {
+                        c.Item().Text(
                             $"Assemblies in thread stacks not matching any of the {r.KnownAssemblyFilters.Count} known-assembly filter prefix(es). " +
                             "These are likely your own code contributing to the problems above.")
                             .FontSize(9).FontColor(muted);
-                        col.Item().Table(t =>
+                        c.Item().Table(t =>
                         {
-                            t.ColumnsDefinition(c =>
+                            t.ColumnsDefinition(cd =>
                             {
-                                c.RelativeColumn(3);
-                                c.RelativeColumn(1);
-                                c.RelativeColumn(1);
-                                c.RelativeColumn(5);
+                                cd.RelativeColumn(3);
+                                cd.RelativeColumn(1);
+                                cd.RelativeColumn(1);
+                                cd.RelativeColumn(4);
+                                cd.RelativeColumn(2);
                             });
                             t.Header(h =>
                             {
@@ -161,6 +196,7 @@ public static class PdfReporter
                                 h.Cell().Background(primary).Padding(4).Text("Threads").FontColor(onPrimary).Bold();
                                 h.Cell().Background(primary).Padding(4).Text("Blocked").FontColor(onPrimary).Bold();
                                 h.Cell().Background(primary).Padding(4).Text("Top Method").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Patterns").FontColor(onPrimary).Bold();
                             });
                             foreach (var h in r.ApplicationHotspots.Take(20))
                             {
@@ -172,20 +208,154 @@ public static class PdfReporter
                                 else
                                     blockedCell.Text("0").FontSize(8);
                                 t.Cell().Padding(3).Text(h.TopMethods.Count > 0 ? h.TopMethods[0] : "").FontSize(7).FontFamily(fonts.Mono).FontColor(muted);
+                                // Only patterns shown in the PDF (the first 20) can be linked
+                                var patterns = ReportLayout.PatternsWithAssembly(r, h.Assembly).Where(i => i < 20).ToList();
+                                t.Cell().Padding(3).Row(pr =>
+                                {
+                                    foreach (var p in patterns.Take(6))
+                                        pr.AutoItem().PaddingRight(4).SectionLink(ReportLayout.PatternAnchor(p)).Text($"#{p + 1}").FontSize(8).FontColor(accent);
+                                });
                             }
                         });
                     }
 
-                    // Threads
-                    col.Item().Text($"6. {skin.Heading("thread_summary")}").FontSize(14).FontFamily(fonts.Heading).HeadingWeight(skin).FontColor(primary);
-                    var alive = r.Threads.Where(t => t.IsAlive).ToList();
-                    col.Item().Text($"Live: {alive.Count}  |  Dead (not analyzed): {r.Threads.Count - alive.Count}  |  Waiting/blocked: {alive.Count(t => t.BlockingReason != null)}");
-                    if (r.ThreadPool is { } tp)
-                        col.Item().Text($"Thread pool: active {tp.ActiveWorkerThreads}, idle {tp.IdleWorkerThreads}, min {tp.MinThreads}, max {tp.MaxThreads}  |  CPU at capture (system-wide): {tp.CpuUtilization}%");
-                    foreach (var g in r.ThreadGroups.Take(10))
+                    void MemoryOverview(ColumnDescriptor c)
                     {
-                        var topFrame = g.RepresentativeStack.FirstOrDefault(f => !f.StartsWith('[')) ?? g.RepresentativeStack.FirstOrDefault() ?? "";
-                        col.Item().Text($"{g.ThreadCount,5:N0} threads ({g.Percentage:F1}%) — {g.WaitReason ?? "running"} — {topFrame}").FontSize(8);
+                        c.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cd => { cd.RelativeColumn(); cd.RelativeColumn(); });
+                            AddRow(t, "Total heap", FormatBytes(r.GcStats.TotalHeapBytes));
+                            AddRow(t, "Gen0", FormatBytes(r.GcStats.Gen0Bytes));
+                            AddRow(t, "Gen1", FormatBytes(r.GcStats.Gen1Bytes));
+                            AddRow(t, "Gen2", FormatBytes(r.GcStats.Gen2Bytes));
+                            AddRow(t, "LOH", FormatBytes(r.GcStats.LohBytes));
+                            AddRow(t, "LOH fragmentation", $"{r.GcStats.LohFragmentationPercent:F1}% ({FormatBytes(r.GcStats.LohFreeBytes)} free)");
+                            AddRow(t, "Gen2 fragmentation", $"{r.GcStats.Gen2FragmentationPercent:F1}% ({FormatBytes(r.GcStats.Gen2FreeBytes)} free)");
+                        });
+                    }
+
+                    void TopConsumers(ColumnDescriptor c)
+                    {
+                        c.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cd =>
+                            {
+                                cd.RelativeColumn(4);
+                                cd.RelativeColumn(2);
+                                cd.RelativeColumn(2);
+                            });
+                            t.Header(h =>
+                            {
+                                h.Cell().Background(primary).Padding(4).Text("Type").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Instances").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Size").FontColor(onPrimary).Bold();
+                            });
+                            foreach (var ht in r.HeapTypes.Take(25))
+                            {
+                                t.Cell().Padding(3).Text(ht.TypeName).FontSize(8);
+                                t.Cell().Padding(3).Text($"{ht.InstanceCount:N0}").FontSize(8);
+                                t.Cell().Padding(3).Text(FormatBytes(ht.TotalSizeBytes)).FontSize(8);
+                            }
+                        });
+                    }
+
+                    void DuplicateStrings(ColumnDescriptor c)
+                    {
+                        c.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cd =>
+                            {
+                                cd.RelativeColumn(6);
+                                cd.RelativeColumn(1.5f);
+                                cd.RelativeColumn(1.5f);
+                            });
+                            t.Header(h =>
+                            {
+                                h.Cell().Background(primary).Padding(4).Text("Value (truncated)").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Instances").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Wasted").FontColor(onPrimary).Bold();
+                            });
+                            foreach (var s in r.DuplicateStrings.Take(20))
+                            {
+                                t.Cell().Padding(3).Text(s.Value).FontSize(7).FontFamily(fonts.Mono);
+                                t.Cell().Padding(3).Text($"{s.InstanceCount:N0}").FontSize(8);
+                                t.Cell().Padding(3).Text(FormatBytes(s.TotalWastedBytes)).FontSize(8);
+                            }
+                        });
+                    }
+
+                    void GcHealth(ColumnDescriptor c)
+                    {
+                        c.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(cd =>
+                            {
+                                cd.RelativeColumn(2);
+                                cd.RelativeColumn(2);
+                                cd.RelativeColumn(2);
+                                cd.RelativeColumn(1.5f);
+                            });
+                            t.Header(h =>
+                            {
+                                h.Cell().Background(primary).Padding(4).Text("Kind").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Committed").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Free objects").FontColor(onPrimary).Bold();
+                                h.Cell().Background(primary).Padding(4).Text("Fill %").FontColor(onPrimary).Bold();
+                            });
+                            foreach (var seg in r.GcStats.Segments.Take(40))
+                            {
+                                t.Cell().Padding(3).Text(seg.Kind).FontSize(8);
+                                t.Cell().Padding(3).Text(FormatBytes(seg.CommittedBytes)).FontSize(8);
+                                t.Cell().Padding(3).Text(FormatBytes(seg.FreeBytes)).FontSize(8);
+                                t.Cell().Padding(3).Text($"{seg.FillRatio * 100:F1}%").FontSize(8);
+                            }
+                        });
+                    }
+
+                    void FindingsDetail(ColumnDescriptor c)
+                    {
+                        for (int i = 0; i < r.Findings.Count; i++)
+                        {
+                            var f = r.Findings[i];
+                            var index = i;
+                            c.Item().Section(ReportLayout.FindingDetailAnchor(i)).Background(SeverityBackground(skin, f.Severity))
+                                .BorderLeft(3).BorderColor(SeverityColor(skin, f.Severity)).Padding(6).Column(fc =>
+                            {
+                                fc.Item().Text($"[{f.Severity.ToString().ToUpper()}] {f.Id}").FontSize(9).FontColor(muted);
+                                fc.Item().Text(f.Summary).Bold();
+                                fc.Item().Text(f.Explanation).FontSize(9).FontColor(muted);
+                                if (f.Evidence != null)
+                                    fc.Item().Text($"Evidence: {f.Evidence}").FontSize(8).FontColor(muted);
+                                if (f.Recommendation != null)
+                                    fc.Item().PaddingTop(3).Text($"Recommendation: {f.Recommendation}").FontSize(9).Italic().FontColor(accent);
+                                if (f.TechnicalDetails != null && f.TechnicalDetails.Count > 0)
+                                {
+                                    fc.Item().PaddingTop(4)
+                                        .Background(skin.Color("codeBackground")).Padding(5)
+                                        .Text(string.Join("\n", f.TechnicalDetails))
+                                        .FontSize(7).FontColor(skin.Color("codeText"))
+                                        .FontFamily(fonts.Mono);
+                                }
+                                Links(fc, f, index, detail: true);
+                            });
+                        }
+                    }
+
+                    // Short entry → its details (and back), plus the section whose data backs the finding up
+                    void Links(ColumnDescriptor fc, Finding f, int index, bool detail)
+                    {
+                        fc.Item().PaddingTop(3).Row(row =>
+                        {
+                            if (detail)
+                                row.AutoItem().SectionLink(ReportLayout.FindingAnchor(index)).Text($"↑ {skin.Heading("findings")}").FontSize(8).FontColor(accent);
+                            else
+                                row.AutoItem().SectionLink(ReportLayout.FindingDetailAnchor(index)).Text("Full explanation, evidence and technical details ↓").FontSize(8).FontColor(accent);
+                            if (ReportLayout.RelatedSection(f.Id) is { } key && present.Contains(key))
+                            {
+                                row.AutoItem().PaddingHorizontal(6).Text("·").FontSize(8).FontColor(subtle);
+                                row.AutoItem().SectionLink(ReportLayout.Anchor(key)).Text(skin.Heading(key)).FontSize(8).FontColor(accent);
+                            }
+                        });
                     }
                 });
 

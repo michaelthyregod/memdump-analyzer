@@ -135,7 +135,7 @@ public class SkinTests : IDisposable
         Assert.Contains("<h2>Top memory consumers</h2>", html);
         Assert.Contains("<h2>GC health</h2>", html);                // acronym keeps its capitals
         Assert.DoesNotContain(">Top Memory Consumers<", html);   // (the template's HTML comments may keep title case)
-        Assert.Contains("## 3. Top memory consumers", md);
+        Assert.Contains("## 5. Top memory consumers", md);
         Assert.Contains("## 1. Executive summary", md);
         Assert.Contains("<h2>Growing types (top 10)</h2>", diffHtml);
         Assert.Contains("## New types", diffMd);

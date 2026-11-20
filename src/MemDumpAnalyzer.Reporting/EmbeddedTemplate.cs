@@ -57,6 +57,14 @@ details[open] summary{margin-bottom:.75rem}
 .tech-details{font-family:var(--font-mono);font-size:.78rem;background:var(--code-background);color:var(--code-text);border-radius:6px;padding:1rem;margin-top:.75rem;white-space:pre;overflow-x:auto;max-height:500px;overflow-y:auto;line-height:1.5}
 .tech-details summary{font-family:inherit;font-size:.8rem;color:var(--code-accent);cursor:pointer;padding:.25rem 0}
 .section{background:var(--surface);border-radius:8px;padding:1.5rem;margin:1rem 0;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.toc{background:var(--surface);border-radius:8px;padding:1rem 1.5rem;margin:1.5rem 0;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.toc-title{font-family:var(--font-heading);font-weight:var(--heading-weight);color:var(--primary);font-size:1.1rem;margin-bottom:.5rem}
+.toc ol{margin-left:1.25rem}.toc li{margin:.15rem 0}.toc ol ol{font-size:.85rem;margin:.25rem 0 .5rem 1rem;list-style:none}
+.toc a,.xlinks a{color:var(--accent);text-decoration:none}.toc a:hover,.xlinks a:hover{text-decoration:underline}
+.toc .badge{font-size:.65rem;padding:.05rem .4rem}
+.toc-link{float:right;font-size:.75rem;font-weight:400;font-family:var(--font-body);color:var(--subtle);text-decoration:none;margin-top:.5rem}
+.xlinks{font-size:.82rem;margin-top:.4rem}
+.section-anchor{height:0}
 footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </style>
 </head>
@@ -73,6 +81,8 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 <p style="color:var(--muted);margin-bottom:1.5rem">Generated {{ generated_utc }} UTC</p>
 
 <!-- Executive Summary -->
+<div class="section-anchor" id="executive-summary"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
+<h2>{{ headings.executive_summary | html.escape }}</h2>
 <div class="meta-grid">
   <div class="meta-card">
     <div class="label">Dump file</div>
@@ -112,66 +122,33 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 <div class="finding warning" style="margin:1rem 0"><strong>Incomplete heap data:</strong> the dump was captured while a garbage collection was running, so heap types, duplicate strings and fragmentation below come from the part of the heap that could be read.</div>
 {{ end }}
 
-<!-- Findings -->
+<!-- Contents -->
+<nav class="toc" id="contents">
+  <div class="toc-title">{{ headings.contents | html.escape }}</div>
+  <ol>
+  {{ for s in sections }}
+    <li><a href="#{{ s.anchor }}">{{ s.title | html.escape }}</a>{{ if s.key == "findings" && r.findings.size > 0 }}
+      <ol>{{ for f in r.findings }}<li><a href="#finding-{{ for.index + 1 }}"><span class="badge {{ severity_class f.severity }}">{{ severity_label f.severity }}</span>{{ f.summary | html.escape }}</a></li>{{ end }}</ol>{{ end }}</li>
+  {{ end }}
+  </ol>
+</nav>
+
+<!-- Findings (short) -->
+<div class="section-anchor" id="findings"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
 <h2>{{ headings.findings | html.escape }}</h2>
 <div class="findings">
 {{ for f in r.findings }}
-  <div class="finding {{ severity_class f.severity }}">
+  <div class="finding {{ severity_class f.severity }}" id="finding-{{ for.index + 1 }}">
     <div class="finding-summary"><span class="badge {{ severity_class f.severity }}">{{ severity_label f.severity }}</span>{{ f.summary | html.escape }}</div>
-    <div class="finding-detail">{{ f.explanation | html.escape }}</div>
-    {{ if f.evidence }}<div class="finding-detail"><strong>Evidence:</strong> {{ f.evidence | html.escape }}</div>{{ end }}
     {{ if f.recommendation }}<div class="finding-detail" style="color:var(--accent)"><strong>Recommendation:</strong> {{ f.recommendation | html.escape }}</div>{{ end }}
-    {{ if f.technical_details }}
-    <details class="tech-details-wrap" style="margin-top:.5rem">
-      <summary class="tech-details" style="background:var(--code-header);padding:.4rem .75rem;border-radius:4px 4px 0 0">Technical details (click to expand)</summary>
-      <div class="tech-details" style="border-radius:0 0 6px 6px;margin-top:0">{{ for line in f.technical_details }}{{ line | html.escape }}
-{{ end }}</div>
-    </details>
-    {{ end }}
+    <div class="xlinks"><a href="#finding-detail-{{ for.index + 1 }}">Full explanation, evidence and technical details ↓</a>{{ rel = related_anchor f.id }}{{ if rel != "" }} · <a href="#{{ rel }}">{{ related_title f.id | html.escape }} ↓</a>{{ end }}</div>
   </div>
 {{ end }}
 {{ if r.findings.size == 0 }}<p style="color:var(--success);font-weight:600">No significant findings — heap looks healthy!</p>{{ end }}
 </div>
 
-<!-- Memory Overview -->
-<h2>{{ headings.memory_overview | html.escape }}</h2>
-<div class="chart-wrap">
-{{ max_bytes = r.gc_stats.total_heap_bytes > 0 ? r.gc_stats.total_heap_bytes : 1 }}
-{{ for row in [['Gen0', r.gc_stats.gen0_bytes], ['Gen1', r.gc_stats.gen1_bytes], ['Gen2', r.gc_stats.gen2_bytes], ['LOH', r.gc_stats.loh_bytes], ['POH', r.gc_stats.poh_bytes]] }}
-  <div class="bar-row">
-    <div class="bar-label">{{ row[0] }}</div>
-    <div class="bar-track"><div class="bar-fill" style="width:{{ math.floor(row[1] * 100 / max_bytes) }}%"></div></div>
-    <div class="bar-value">{{ format_bytes row[1] }}</div>
-  </div>
-{{ end }}
-<div style="margin-top:.75rem;font-size:.85rem;color:var(--muted)">Total heap: <strong>{{ format_bytes r.gc_stats.total_heap_bytes }}</strong> &nbsp;|&nbsp; LOH fragmentation: <strong>{{ math.round r.gc_stats.loh_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.loh_free_bytes }} free) &nbsp;|&nbsp; Gen2 fragmentation: <strong>{{ math.round r.gc_stats.gen2_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.gen2_free_bytes }} free)</div>
-</div>
-
-<!-- Top Memory Consumers -->
-<h2>{{ headings.top_memory_consumers | html.escape }}</h2>
-{{ top_size = (r.heap_types.size > 0 && r.heap_types[0].total_size_bytes > 0) ? r.heap_types[0].total_size_bytes : 1 }}
-<div class="chart-wrap" style="margin-bottom:1rem">
-{{ for t in r.heap_types | array.limit 15 }}
-  <div class="bar-row">
-    <div class="bar-label" title="{{ t.type_name | html.escape }}">{{ t.type_name | html.escape }}</div>
-    <div class="bar-track"><div class="bar-fill" style="width:{{ math.floor(t.total_size_bytes * 100 / top_size) }}%"></div></div>
-    <div class="bar-value">{{ format_bytes t.total_size_bytes }}</div>
-  </div>
-{{ end }}
-</div>
-<details>
-  <summary>Full type table ({{ r.heap_types.size }} types)</summary>
-  <table>
-    <thead><tr><th>Type</th><th>Instances</th><th>Total Size</th><th>Gen</th></tr></thead>
-    <tbody>
-    {{ for t in r.heap_types | array.limit 500 }}
-      <tr><td style="font-family:monospace;font-size:.8rem">{{ t.type_name | html.escape }}</td><td style="text-align:right">{{ t.instance_count }}</td><td style="text-align:right">{{ format_bytes t.total_size_bytes }}</td><td style="text-align:right">{{ t.generation }}</td></tr>
-    {{ end }}
-    </tbody>
-  </table>
-</details>
-
 <!-- Thread Analysis -->
+<div class="section-anchor" id="thread-analysis"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
 <h2>{{ headings.thread_analysis | html.escape }}</h2>
 <div class="section" style="padding:1rem">
   <p>Live threads: <strong>{{ alive_thread_count }}</strong> &nbsp;|&nbsp; Dead (not analyzed): <strong>{{ r.threads.size - alive_thread_count }}</strong> &nbsp;|&nbsp; Waiting/blocked: <strong>{{ blocked_thread_count }}</strong></p>
@@ -181,10 +158,11 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </div>
 <h3>{{ headings.thread_patterns | html.escape }} (live threads grouped by top stack frames)</h3>
 <table>
-  <thead><tr><th style="text-align:right">Threads</th><th style="text-align:right">%</th><th>Waiting on</th><th>Representative stack (top 12)</th></tr></thead>
+  <thead><tr><th style="text-align:right">#</th><th style="text-align:right">Threads</th><th style="text-align:right">%</th><th>Waiting on</th><th>Representative stack (top 12)</th></tr></thead>
   <tbody>
   {{ for g in r.thread_groups }}
-    <tr>
+    <tr id="pattern-{{ for.index + 1 }}">
+      <td style="text-align:right">{{ for.index + 1 }}</td>
       <td style="text-align:right;font-weight:600">{{ g.thread_count }}</td>
       <td style="text-align:right">{{ math.round(g.percentage, 1) }}</td>
       <td>{{ g.wait_reason | html.escape }}</td>
@@ -212,41 +190,9 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
   </table>
 </details>
 
-<!-- GC Health -->
-<h2>{{ headings.gc_health | html.escape }}</h2>
-<table>
-  <thead><tr><th>Kind</th><th>Committed</th><th>Reserved</th><th>Free objects</th><th>Fill %</th></tr></thead>
-  <tbody>
-  {{ for seg in r.gc_stats.segments | array.limit 200 }}
-    <tr>
-      <td>{{ seg.kind }}</td>
-      <td style="text-align:right">{{ format_bytes seg.committed_bytes }}</td>
-      <td style="text-align:right">{{ format_bytes seg.reserved_bytes }}</td>
-      <td style="text-align:right">{{ format_bytes seg.free_bytes }}</td>
-      <td style="text-align:right">{{ math.round(seg.fill_ratio * 100, 1) }}%</td>
-    </tr>
-  {{ end }}
-  </tbody>
-</table>
-
-<!-- Duplicate Strings -->
-{{ if r.duplicate_strings.size > 0 }}
-<h2>{{ headings.duplicate_strings | html.escape }}</h2>
-<details>
-  <summary>{{ r.duplicate_strings.size }} duplicate string groups</summary>
-  <table>
-    <thead><tr><th>Value (truncated)</th><th>Instances</th><th>Wasted</th></tr></thead>
-    <tbody>
-    {{ for s in r.duplicate_strings | array.limit 20 }}
-      <tr><td style="font-family:monospace;font-size:.8rem">{{ s.value | html.escape }}</td><td style="text-align:right">{{ s.instance_count }}</td><td style="text-align:right">{{ format_bytes s.total_wasted_bytes }}</td></tr>
-    {{ end }}
-    </tbody>
-  </table>
-</details>
-{{ end }}
-
 <!-- Application Code Hotspots -->
 {{ if r.application_hotspots.size > 0 }}
+<div class="section-anchor" id="application-code-hotspots"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
 <h2>{{ headings.application_code_hotspots | html.escape }}</h2>
 <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
   Assemblies found in thread stacks that are <strong>not suppressed</strong> by the known-assembly filter
@@ -255,7 +201,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
   These are likely your own application code contributing to the problems above.
 </p>
 <table>
-  <thead><tr><th>Assembly</th><th style="text-align:right">Threads</th><th style="text-align:right">Blocked</th><th>Most frequent method</th></tr></thead>
+  <thead><tr><th>Assembly</th><th style="text-align:right">Threads</th><th style="text-align:right">Blocked</th><th>Most frequent method</th><th>In thread patterns</th></tr></thead>
   <tbody>
   {{ for h in r.application_hotspots | array.limit 30 }}
     <tr>
@@ -263,6 +209,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
       <td style="text-align:right">{{ h.thread_count }}</td>
       <td style="text-align:right{{ if h.blocked_thread_count > 0 }};color:var(--critical);font-weight:700{{ end }}">{{ h.blocked_thread_count }}</td>
       <td style="font-family:monospace;font-size:.78rem;color:var(--muted)">{{ h.top_methods | array.first | html.escape }}</td>
+      <td class="xlinks">{{ for n in (hotspot_patterns h.assembly) }}<a href="#pattern-{{ n }}">#{{ n }}</a> {{ end }}</td>
     </tr>
   {{ end }}
   </tbody>
@@ -279,10 +226,87 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 </details>
 {{ end }}
 
+<!-- Memory Overview -->
+<div class="section-anchor" id="memory-overview"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
+<h2>{{ headings.memory_overview | html.escape }}</h2>
+<div class="chart-wrap">
+{{ max_bytes = r.gc_stats.total_heap_bytes > 0 ? r.gc_stats.total_heap_bytes : 1 }}
+{{ for row in [['Gen0', r.gc_stats.gen0_bytes], ['Gen1', r.gc_stats.gen1_bytes], ['Gen2', r.gc_stats.gen2_bytes], ['LOH', r.gc_stats.loh_bytes], ['POH', r.gc_stats.poh_bytes]] }}
+  <div class="bar-row">
+    <div class="bar-label">{{ row[0] }}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:{{ math.floor(row[1] * 100 / max_bytes) }}%"></div></div>
+    <div class="bar-value">{{ format_bytes row[1] }}</div>
+  </div>
+{{ end }}
+<div style="margin-top:.75rem;font-size:.85rem;color:var(--muted)">Total heap: <strong>{{ format_bytes r.gc_stats.total_heap_bytes }}</strong> &nbsp;|&nbsp; LOH fragmentation: <strong>{{ math.round r.gc_stats.loh_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.loh_free_bytes }} free) &nbsp;|&nbsp; Gen2 fragmentation: <strong>{{ math.round r.gc_stats.gen2_fragmentation_percent 1 }}%</strong> ({{ format_bytes r.gc_stats.gen2_free_bytes }} free)</div>
+</div>
+
+<!-- Top Memory Consumers -->
+<div class="section-anchor" id="top-memory-consumers"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
+<h2>{{ headings.top_memory_consumers | html.escape }}</h2>
+{{ top_size = (r.heap_types.size > 0 && r.heap_types[0].total_size_bytes > 0) ? r.heap_types[0].total_size_bytes : 1 }}
+<div class="chart-wrap" style="margin-bottom:1rem">
+{{ for t in r.heap_types | array.limit 15 }}
+  <div class="bar-row">
+    <div class="bar-label" title="{{ t.type_name | html.escape }}">{{ t.type_name | html.escape }}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:{{ math.floor(t.total_size_bytes * 100 / top_size) }}%"></div></div>
+    <div class="bar-value">{{ format_bytes t.total_size_bytes }}</div>
+  </div>
+{{ end }}
+</div>
+<details>
+  <summary>Full type table ({{ r.heap_types.size }} types)</summary>
+  <table>
+    <thead><tr><th>Type</th><th>Instances</th><th>Total Size</th><th>Gen</th></tr></thead>
+    <tbody>
+    {{ for t in r.heap_types | array.limit 500 }}
+      <tr><td style="font-family:monospace;font-size:.8rem">{{ t.type_name | html.escape }}</td><td style="text-align:right">{{ t.instance_count }}</td><td style="text-align:right">{{ format_bytes t.total_size_bytes }}</td><td style="text-align:right">{{ t.generation }}</td></tr>
+    {{ end }}
+    </tbody>
+  </table>
+</details>
+
+<!-- Duplicate Strings -->
+{{ if r.duplicate_strings.size > 0 }}
+<div class="section-anchor" id="duplicate-strings"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
+<h2>{{ headings.duplicate_strings | html.escape }}</h2>
+<details>
+  <summary>{{ r.duplicate_strings.size }} duplicate string groups</summary>
+  <table>
+    <thead><tr><th>Value (truncated)</th><th>Instances</th><th>Wasted</th></tr></thead>
+    <tbody>
+    {{ for s in r.duplicate_strings | array.limit 20 }}
+      <tr><td style="font-family:monospace;font-size:.8rem">{{ s.value | html.escape }}</td><td style="text-align:right">{{ s.instance_count }}</td><td style="text-align:right">{{ format_bytes s.total_wasted_bytes }}</td></tr>
+    {{ end }}
+    </tbody>
+  </table>
+</details>
+{{ end }}
+
+<!-- GC Health -->
+<div class="section-anchor" id="gc-health"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
+<h2>{{ headings.gc_health | html.escape }}</h2>
+<table>
+  <thead><tr><th>Kind</th><th>Committed</th><th>Reserved</th><th>Free objects</th><th>Fill %</th></tr></thead>
+  <tbody>
+  {{ for seg in r.gc_stats.segments | array.limit 200 }}
+    <tr>
+      <td>{{ seg.kind }}</td>
+      <td style="text-align:right">{{ format_bytes seg.committed_bytes }}</td>
+      <td style="text-align:right">{{ format_bytes seg.reserved_bytes }}</td>
+      <td style="text-align:right">{{ format_bytes seg.free_bytes }}</td>
+      <td style="text-align:right">{{ math.round(seg.fill_ratio * 100, 1) }}%</td>
+    </tr>
+  {{ end }}
+  </tbody>
+</table>
+
 <!-- Findings Detail -->
+{{ if r.findings.size > 0 }}
+<div class="section-anchor" id="findings-detail"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
 <h2>{{ headings.findings_detail | html.escape }}</h2>
 {{ for f in r.findings }}
-<div class="finding {{ severity_class f.severity }}" style="margin:.75rem 0">
+<div class="finding {{ severity_class f.severity }}" style="margin:.75rem 0" id="finding-detail-{{ for.index + 1 }}">
   <h3><span class="badge {{ severity_class f.severity }}">{{ severity_label f.severity }}</span>{{ f.id | html.escape }}</h3>
   <p style="font-weight:600;margin:.4rem 0">{{ f.summary | html.escape }}</p>
   <p style="color:var(--muted);font-size:.9rem">{{ f.explanation | html.escape }}</p>
@@ -295,7 +319,9 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 {{ end }}</div>
   </details>
   {{ end }}
+  <div class="xlinks"><a href="#finding-{{ for.index + 1 }}">↑ {{ headings.findings | html.escape }}</a>{{ rel = related_anchor f.id }}{{ if rel != "" }} · <a href="#{{ rel }}">{{ related_title f.id | html.escape }}</a>{{ end }}</div>
 </div>
+{{ end }}
 {{ end }}
 
 <footer>{{ skin_footer | html.escape }}</footer>

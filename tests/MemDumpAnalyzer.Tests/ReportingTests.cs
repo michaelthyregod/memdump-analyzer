@@ -69,8 +69,8 @@ public class ReportingTests
 
         Assert.Contains("# Memory Dump Analysis Report", md);
         Assert.Contains("## 1. Executive Summary", md);
-        Assert.Contains("## 3. Top Memory Consumers", md);
-        Assert.Contains("## 4. Thread Analysis", md);
+        Assert.Contains("## 5. Top Memory Consumers", md);
+        Assert.Contains("## 3. Thread Analysis", md);
         Assert.Contains("Health score", md);
         Assert.Contains("85/100", md);
     }

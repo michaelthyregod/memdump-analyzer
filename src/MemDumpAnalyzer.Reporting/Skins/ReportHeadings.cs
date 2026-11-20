@@ -17,6 +17,7 @@ public static class ReportHeadings
 {
     private static readonly Dictionary<string, (string Title, string Sentence)> All = new()
     {
+        ["contents"] = ("Contents", "Contents"),
         ["executive_summary"] = ("Executive Summary", "Executive summary"),
         ["top_findings"] = ("Top Findings", "Top findings"),
         ["findings"] = ("Findings", "Findings"),
