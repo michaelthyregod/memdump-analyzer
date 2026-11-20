@@ -101,6 +101,7 @@ Controls which assemblies appear in the "Application Code Hotspots" report secti
 - `-Prefix` (or bare `Prefix`) — exclude: treat as known infrastructure, hide from hotspots
 - `+Prefix` — include: force visible even if a broader exclude would hide it (takes priority)
 - `#` or `//` lines are comments; blank lines ignored
+- No file → no hotspots section (`LoadFilter` returns null); a file without rules → nothing hidden, every assembly listed
 
 Example — hide all Sitecore but surface one specific assembly:
 ```

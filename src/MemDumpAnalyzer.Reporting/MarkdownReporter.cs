@@ -164,10 +164,7 @@ public static class MarkdownReporter
 
         void Hotspots()
         {
-            sb.AppendLine($"Assemblies found in thread stacks that are **not suppressed** by the known-assembly filter " +
-                          $"({r.KnownAssemblyFilters.Count} rule{(r.KnownAssemblyFilters.Count == 1 ? "" : "s")} active — " +
-                          "`-prefix` hides, `+prefix` forces visible even under a broader exclude). " +
-                          "These are likely your own application code contributing to the issues above.");
+            sb.AppendLine(ReportLayout.HotspotsIntro(r));
             sb.AppendLine();
             sb.AppendLine("| Assembly | Threads | Blocked | In thread patterns |");
             sb.AppendLine("|---|---:|---:|---|");

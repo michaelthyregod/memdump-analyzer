@@ -194,12 +194,7 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
 {{ if r.application_hotspots.size > 0 }}
 <div class="section-anchor" id="application-code-hotspots"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
 <h2>{{ headings.application_code_hotspots | html.escape }}</h2>
-<p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
-  Assemblies found in thread stacks that are <strong>not suppressed</strong> by the known-assembly filter
-  ({{ r.known_assembly_filters.size }} rule{{ if r.known_assembly_filters.size != 1 }}s{{ end }} active —
-  <code style="font-size:.8rem">-prefix</code> hides an assembly, <code style="font-size:.8rem">+prefix</code> forces it visible even under a broader exclude).
-  These are likely your own application code contributing to the problems above.
-</p>
+<p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">{{ hotspots_intro | html.escape }}</p>
 <table>
   <thead><tr><th>Assembly</th><th style="text-align:right">Threads</th><th style="text-align:right">Blocked</th><th>Most frequent method</th><th>In thread patterns</th></tr></thead>
   <tbody>

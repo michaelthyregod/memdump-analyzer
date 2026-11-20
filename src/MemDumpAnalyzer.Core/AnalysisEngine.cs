@@ -73,7 +73,7 @@ public static class AnalysisEngine
             DuplicateStrings: strings,
             LeakSuspects: leaks,
             ApplicationHotspots: hotspots,
-            KnownAssemblyFilters: knownPrefixes,
+            KnownAssemblyFilters: knownPrefixes ?? [],
             Findings: findings,
             HealthScore: score,
             HeapWalkComplete: heapWalk.Complete,

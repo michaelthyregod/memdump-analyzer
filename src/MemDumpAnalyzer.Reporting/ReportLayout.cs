@@ -66,6 +66,16 @@ public static class ReportLayout
     public static ReportSection? RelatedSection(AnalysisResult r, Finding f) =>
         RelatedSection(f.Id) is { } key ? SectionsFor(r).FirstOrDefault(s => s.Key == key) : null;
 
+    /// <summary>The text above the hotspots table, the same in every report.</summary>
+    public static string HotspotsIntro(AnalysisResult r) =>
+        r.KnownAssemblyFilters.Count == 0
+            ? "Every assembly found in thread stacks, ranked by the number of threads: the known-assembly filter file " +
+              "has no rules, so nothing is hidden — .NET, ASP.NET and platform assemblies are included."
+            : "Assemblies found in thread stacks that the known-assembly filter does not hide " +
+              $"({r.KnownAssemblyFilters.Count} rule{(r.KnownAssemblyFilters.Count == 1 ? "" : "s")} active — " +
+              "-prefix hides an assembly, +prefix shows it even under a broader exclude). " +
+              "These are likely your own application code contributing to the problems above.";
+
     /// <summary>The text above the retention paths, the same in every report.</summary>
     public static string RetentionIntro(RetentionReport retention) =>
         "The largest objects on the heap and the chain of references that keeps each one alive, from a GC root down to " +

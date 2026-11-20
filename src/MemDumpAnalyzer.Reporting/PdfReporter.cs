@@ -177,10 +177,7 @@ public static class PdfReporter
 
                     void Hotspots(ColumnDescriptor c)
                     {
-                        c.Item().Text(
-                            $"Assemblies in thread stacks not matching any of the {r.KnownAssemblyFilters.Count} known-assembly filter prefix(es). " +
-                            "These are likely your own code contributing to the problems above.")
-                            .FontSize(9).FontColor(muted);
+                        c.Item().Text(ReportLayout.HotspotsIntro(r)).FontSize(9).FontColor(muted);
                         c.Item().Table(t =>
                         {
                             t.ColumnsDefinition(cd =>

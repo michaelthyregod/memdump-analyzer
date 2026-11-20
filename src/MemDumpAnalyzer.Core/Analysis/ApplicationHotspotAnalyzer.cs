@@ -15,12 +15,14 @@ public static class ApplicationHotspotAnalyzer
     /// Include rules take priority over exclude rules, so "+Sitecore.SessionProvider" combined
     /// with "-Sitecore" will surface only Sitecore.SessionProvider.* assemblies.
     /// </summary>
+    /// <param name="filterLines">The filter rules; null when there is no filter file (no hotspots), empty when the
+    /// file has no rules (nothing is hidden: every assembly is a hotspot).</param>
     public static IReadOnlyList<AssemblyHotspot> Analyze(
         IReadOnlyList<ThreadInfo> threads,
-        IReadOnlyList<string> filterLines,
+        IReadOnlyList<string>? filterLines,
         CancellationToken cancellationToken = default)
     {
-        if (filterLines.Count == 0 || threads.Count == 0)
+        if (filterLines == null || threads.Count == 0)
             return [];
 
         // Parse into include (+) and exclude (-) prefix lists
@@ -91,10 +93,11 @@ public static class ApplicationHotspotAnalyzer
     /// Reads filter prefixes from a text file — one prefix per line, lines starting with # or // are comments.
     /// An assembly is considered "known/trusted" if its name starts with any of the returned prefixes.
     /// </summary>
-    public static IReadOnlyList<string> LoadFilter(string? filePath)
+    /// <returns>Null when there is no file; an empty list when the file has no rules (which hides nothing).</returns>
+    public static IReadOnlyList<string>? LoadFilter(string? filePath)
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-            return [];
+            return null;
 
         return File.ReadAllLines(filePath)
             .Select(l => l.Trim())

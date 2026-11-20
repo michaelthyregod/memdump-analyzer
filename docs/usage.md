@@ -141,6 +141,9 @@ and Sitecore (but keeps `Sitecore.SessionProvider` visible).
 StackExchange.Redis        a bare prefix also hides
 ```
 
+Without a filter file the section is left out. A file with no rules (empty, or only comments) hides
+nothing: every assembly in the thread stacks is listed, .NET and platform ones included.
+
 ## 7. Read the results
 
 - **Health score and findings** first: each finding has an explanation, evidence, a recommendation
