@@ -41,6 +41,9 @@
 -EntityFramework
 -Microsoft.EntityFrameworkCore
 
+# ── Blueprint ─────────────────────────────────────────────────────────
+-Blueprint
+
 # ── Sitecore platform ─────────────────────────────────────────────────────────
 # The core (Kernel, Nexus, Mvc, XA, Buckets, …) is hidden: it is on almost every stack and
 # explains little. Features that are configured per site and often take part in performance
