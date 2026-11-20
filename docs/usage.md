@@ -40,14 +40,20 @@ MemDumpAnalyzer.Cli.exe analyze w3wp.dmp --known-assemblies my-filter.txt --top 
 | `--skin` | `-s` | Skin by name — see below | `skin` setting, else `default` |
 | `--skins-dir` | | Extra folder with skins; repeat for more | `skinsDirs` setting |
 | `--prepared-for` | | "Prepared for" line, e.g. the customer | — |
-| `--gc-roots` | | Also sample GC roots for the largest types (see below) | `gcRoots` setting, else off |
+| `--gc-roots` | | Also search thread stacks for retention paths (see below) | `gcRoots` setting, else off |
 
 While it runs, the progress line shows the current step ("Walking the heap", "Analysing 7,539 threads" …).
 
-**`--gc-roots` is slow on dumps with many threads.** It checks whether sampled objects of the largest
-types are themselves GC roots, which means reading every thread's stack roots: about 0.6 s per thread,
-so over an hour for a dump with 7,500 threads. It rarely finds anything, which is why it's off by
-default; the rest of the report is the same without it.
+**Who keeps the largest objects alive.** Every report has a section with the ten largest objects on the
+heap (85,000 bytes and up) and, for each, the chain of references from a GC root down to it, like WinDbg
+`!gcroot` — e.g. `static Acme.CacheManager.s_caches → Dictionary → Entry[]`. It searches static fields,
+handles and the finalizer queue, stops after 60 seconds (the report then says it is partial), and took
+3 s on a small dump and 28 s on a 7,500-thread one. Objects without a path are listed with the reason:
+held only by a thread stack, or garbage the GC hasn't collected yet.
+
+**`--gc-roots` also searches the thread stacks**, without the time limit. That is slow on dumps with
+many threads: about 0.6 s per thread, so over an hour for a dump with 7,500 threads. Use it when the
+report lists large objects without a path and you need to know which request holds them.
 
 ## 3. Compare two dumps
 
@@ -114,7 +120,7 @@ MemDumpAnalyzer.Cli.exe settings reset                                   :: ever
 | `knownAssemblies` | Assembly filter file when `--known-assemblies` isn't given |
 | `top` | Heap types listed (analyze) / rows per table (diff) |
 | `dumpsDirs` | Folders searched for a dump given by name (list) |
-| `gcRoots` | `true` to sample GC roots by default (slow with many threads) |
+| `gcRoots` | `true` to search thread stacks for retention paths by default (slow with many threads) |
 
 Lists combine: entries from the local file come first, then the per-user ones. Relative paths in a
 settings file are relative to that file's folder.

@@ -85,6 +85,7 @@ public static class PdfReporter
                             case "application_code_hotspots": Hotspots(col); break;
                             case "memory_overview": MemoryOverview(col); break;
                             case "top_memory_consumers": TopConsumers(col); break;
+                            case "retention_paths": RetentionPaths(col, r.Retention!); break;
                             case "duplicate_strings": DuplicateStrings(col); break;
                             case "gc_health": GcHealth(col); break;
                             case "findings_detail": FindingsDetail(col); break;
@@ -232,6 +233,48 @@ public static class PdfReporter
                             AddRow(t, "LOH fragmentation", $"{r.GcStats.LohFragmentationPercent:F1}% ({FormatBytes(r.GcStats.LohFreeBytes)} free)");
                             AddRow(t, "Gen2 fragmentation", $"{r.GcStats.Gen2FragmentationPercent:F1}% ({FormatBytes(r.GcStats.Gen2FreeBytes)} free)");
                         });
+                    }
+
+                    void RetentionPaths(ColumnDescriptor c, RetentionReport retention)
+                    {
+                        c.Item().Text(ReportLayout.RetentionIntro(retention)).FontSize(9).FontColor(muted);
+                        foreach (var p in retention.Paths)
+                        {
+                            c.Item().PaddingTop(4).Text(t =>
+                            {
+                                t.Span(p.TypeName).FontFamily(fonts.Mono).FontSize(8).Bold();
+                                t.Span($" — {FormatBytes(p.SizeBytes)} — held by ").FontSize(8);
+                                t.Span(p.Root).FontFamily(fonts.Mono).FontSize(8);
+                            });
+                            c.Item().Background(skin.Color("codeBackground")).Padding(5)
+                                .Text(string.Join('\n', p.Describe()))
+                                .FontSize(7).FontColor(skin.Color("codeText")).FontFamily(fonts.Mono);
+                        }
+                        if (retention.NotFound.Count > 0)
+                        {
+                            c.Item().PaddingTop(6).Text(ReportLayout.RetentionNotFoundText(retention)).FontSize(9);
+                            c.Item().Table(t =>
+                            {
+                                t.ColumnsDefinition(cd =>
+                                {
+                                    cd.RelativeColumn(5);
+                                    cd.RelativeColumn(1.5f);
+                                    cd.RelativeColumn(2);
+                                });
+                                t.Header(h =>
+                                {
+                                    h.Cell().Background(primary).Padding(4).Text("Type").FontColor(onPrimary).Bold();
+                                    h.Cell().Background(primary).Padding(4).Text("Size").FontColor(onPrimary).Bold();
+                                    h.Cell().Background(primary).Padding(4).Text("Address").FontColor(onPrimary).Bold();
+                                });
+                                foreach (var nf in retention.NotFound)
+                                {
+                                    t.Cell().Padding(3).Text(nf.TypeName).FontSize(8).FontFamily(fonts.Mono);
+                                    t.Cell().Padding(3).Text(FormatBytes(nf.SizeBytes)).FontSize(8);
+                                    t.Cell().Padding(3).Text(nf.Address.ToString("x16")).FontSize(8).FontFamily(fonts.Mono);
+                                }
+                            });
+                        }
                     }
 
                     void TopConsumers(ColumnDescriptor c)

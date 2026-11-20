@@ -14,7 +14,8 @@ namespace MemDumpAnalyzer.Core.Analysis;
 /// </remarks>
 public static class HeapWalker
 {
-    internal const int SamplesPerType = 3;
+    /// <summary>How many of the largest objects the walk keeps (targets for <see cref="RetentionAnalyzer"/>).</summary>
+    internal const int LargestObjects = 10;
     private const int MaxExactStringKeyLength = 512;
     private const int PreviewLength = 120;
 
@@ -59,7 +60,7 @@ public static class HeapWalker
                 acc.Count++;
                 acc.TotalSize += size;
                 if (gen >= 0) acc.BytesByGeneration[gen] += size;
-                if (acc.Samples.Count < SamplesPerType) acc.Samples.Add(obj.Address);
+                result.OfferLargest(obj.Address, size, typeName);
 
                 if (stringType != null && obj.Type == stringType)
                     AddString(result, obj, size);
@@ -131,6 +132,17 @@ public sealed class HeapWalkResult
     internal Dictionary<string, StringAccumulator> Strings { get; } = new();
     internal Dictionary<ulong, long> FreeBytesBySegment { get; } = new();
     internal long[] FreeBytesByGeneration { get; } = new long[5];
+
+    /// <summary>The largest objects on the heap, largest first.</summary>
+    internal List<(ulong Address, long Size, string TypeName)> Largest { get; } = new(HeapWalker.LargestObjects + 1);
+
+    internal void OfferLargest(ulong address, long size, string typeName)
+    {
+        if (Largest.Count == HeapWalker.LargestObjects && size <= Largest[^1].Size) return;
+        int i = Largest.FindIndex(x => x.Size < size);
+        Largest.Insert(i < 0 ? Largest.Count : i, (address, size, typeName));
+        if (Largest.Count > HeapWalker.LargestObjects) Largest.RemoveAt(Largest.Count - 1);
+    }
 }
 
 internal sealed class TypeAccumulator
@@ -138,7 +150,6 @@ internal sealed class TypeAccumulator
     public long Count;
     public long TotalSize;
     public readonly long[] BytesByGeneration = new long[5];
-    public readonly List<ulong> Samples = new(HeapWalker.SamplesPerType);
 }
 
 internal sealed class StringAccumulator

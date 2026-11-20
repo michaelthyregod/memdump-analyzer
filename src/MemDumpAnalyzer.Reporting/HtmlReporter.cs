@@ -61,6 +61,10 @@ public static class HtmlReporter
             ReportLayout.PatternsWithAssembly(result, assembly).Select(i => i + 1).ToList()));
 
         scriptObj.Import("format_bytes", new Func<long, string>(FormatBytes));
+        scriptObj.Import("hex", new Func<ulong, string>(address => address.ToString("x16")));
+        scriptObj.Import("retention_lines", new Func<RetentionPath, IReadOnlyList<string>>(p => p.Describe()));
+        scriptObj["retention_intro"] = result.Retention is { } retention ? ReportLayout.RetentionIntro(retention) : "";
+        scriptObj["retention_not_found"] = result.Retention is { } r2 ? ReportLayout.RetentionNotFoundText(r2) : "";
         scriptObj.Import("severity_class", new Func<Severity, string>(s => s switch
         {
             Severity.Critical => "critical",

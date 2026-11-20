@@ -46,6 +46,7 @@ public static class MarkdownReporter
                 case "application_code_hotspots": Hotspots(); break;
                 case "memory_overview": MemoryOverview(); break;
                 case "top_memory_consumers": TopConsumers(); break;
+                case "retention_paths": RetentionPaths(r.Retention!); break;
                 case "duplicate_strings": DuplicateStrings(); break;
                 case "gc_health": GcHealth(); break;
                 case "findings_detail": FindingsDetail(); break;
@@ -215,6 +216,32 @@ public static class MarkdownReporter
             foreach (var t in r.HeapTypes.Take(30))
                 sb.AppendLine($"| `{Escape(t.TypeName)}` | {t.InstanceCount:N0} | {FormatBytes(t.TotalSizeBytes)} | {t.Generation} |");
             sb.AppendLine();
+        }
+
+        void RetentionPaths(RetentionReport retention)
+        {
+            sb.AppendLine(ReportLayout.RetentionIntro(retention));
+            sb.AppendLine();
+            foreach (var p in retention.Paths)
+            {
+                sb.AppendLine($"**`{p.TypeName}`** — {FormatBytes(p.SizeBytes)} — held by `{p.Root}`");
+                sb.AppendLine();
+                sb.AppendLine("```");
+                foreach (var line in p.Describe())
+                    sb.AppendLine(line);
+                sb.AppendLine("```");
+                sb.AppendLine();
+            }
+            if (retention.NotFound.Count > 0)
+            {
+                sb.AppendLine(ReportLayout.RetentionNotFoundText(retention));
+                sb.AppendLine();
+                sb.AppendLine("| Type | Size | Address |");
+                sb.AppendLine("|---|---:|---|");
+                foreach (var t in retention.NotFound)
+                    sb.AppendLine($"| `{Escape(t.TypeName)}` | {FormatBytes(t.SizeBytes)} | `{t.Address:x16}` |");
+                sb.AppendLine();
+            }
         }
 
         void DuplicateStrings()

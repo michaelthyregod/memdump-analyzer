@@ -57,5 +57,6 @@ Good to know
   native parts are unpacked to %LOCALAPPDATA%\memdump-analyzer\native on first use. HTML, Markdown
   and JSON don't use it.
 - The progress line shows the current step. A dump with thousands of threads takes longer in
-  "Analysing … threads"; --gc-roots (off by default) is much slower on such dumps.
+  "Analysing … threads"; the retention-path step stops after 60 s. --gc-roots (off by default)
+  also searches thread stacks and is much slower on such dumps.
 - Exit code 0 = success, 1 = error.

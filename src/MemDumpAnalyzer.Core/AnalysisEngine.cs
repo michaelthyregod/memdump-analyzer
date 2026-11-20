@@ -10,9 +10,9 @@ public sealed record AnalysisStep(int Number, int Total, string Description);
 public static class AnalysisEngine
 {
     /// <param name="includeGcRoots">
-    /// Also sample GC roots for the largest types (the "GC root paths" lines in the technical details).
-    /// Off by default: it walks every thread's stack roots, which would take ~80 minutes on a dump with 7,500
-    /// threads, and it rarely finds anything (it only matches objects that are themselves a root).
+    /// Also search thread stacks for the retention paths of the largest objects, with no time limit. Off by default:
+    /// ClrMD reads stack roots at ~0.6 s per thread, ~80 minutes on a dump with 7,500 threads. Without it the search
+    /// covers static fields, handles and the finalizer queue, within <see cref="RetentionAnalyzer.DefaultTimeLimit"/>.
     /// </param>
     /// <param name="progress">Told when each step starts. Called on the analysing thread.</param>
     public static AnalysisResult Analyze(
@@ -23,7 +23,7 @@ public static class AnalysisEngine
         bool includeGcRoots = false,
         IProgress<AnalysisStep>? progress = null)
     {
-        int total = includeGcRoots ? 6 : 5, step = 0;
+        int total = 6, step = 0;
         void Step(string description) => progress?.Report(new AnalysisStep(++step, total, description));
 
         Step("Loading the dump");
@@ -42,9 +42,12 @@ public static class AnalysisEngine
         var gc              = GcAnalyzer.Analyze(runtime, heapWalk, cancellationToken);
         var strings         = StringAnalyzer.Analyze(heapWalk);
 
-        if (includeGcRoots)
-            Step($"GC root samples — slow with many threads ({runtime.Threads.Length:N0})");
-        var leaks           = LeakDetector.Analyze(runtime, heapWalk, heapTypes, includeGcRoots, cancellationToken);
+        Step(includeGcRoots
+            ? $"Retention paths of the largest objects, including thread stacks — slow with many threads ({runtime.Threads.Length:N0})"
+            : $"Retention paths of the largest objects (up to {RetentionAnalyzer.DefaultTimeLimit.TotalSeconds:N0} s)");
+        var retention       = RetentionAnalyzer.Analyze(runtime, heapWalk, includeStackRoots: includeGcRoots,
+                                  timeLimit: includeGcRoots ? null : RetentionAnalyzer.DefaultTimeLimit, cancellationToken);
+        var leaks           = LeakDetector.Analyze(heapTypes, retention);
 
         Step("Findings and hotspots");
         var knownPrefixes   = ApplicationHotspotAnalyzer.LoadFilter(knownAssembliesPath);
@@ -74,7 +77,8 @@ public static class AnalysisEngine
             Findings: findings,
             HealthScore: score,
             HeapWalkComplete: heapWalk.Complete,
-            ThreadPool: threadPool
+            ThreadPool: threadPool,
+            Retention: retention
         );
     }
 }

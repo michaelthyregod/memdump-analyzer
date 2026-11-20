@@ -33,7 +33,7 @@ public sealed class AppSettings
     /// <summary>Folders searched for a dump given by name only, before mem-dumps\ next to the exe.</summary>
     public List<string>? DumpsDirs { get; set; }
 
-    /// <summary>Sample GC roots for the largest types (slow on dumps with many threads). Default off.</summary>
+    /// <summary>Also search thread stacks for retention paths (slow on dumps with many threads). Default off.</summary>
     public bool? GcRoots { get; set; }
 
     [JsonIgnore]

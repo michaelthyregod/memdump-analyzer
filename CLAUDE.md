@@ -21,7 +21,8 @@ memdump-analyzer/
 │   │   ├── DumpLoader.cs              # Opens .dmp via ClrMD, validates runtime, reads capture time from the minidump header
 │   │   ├── AnalysisEngine.cs          # Orchestrates all analyzers; accepts knownAssembliesPath
 │   │   ├── Analysis/
-│   │   │   ├── HeapWalker.cs          # ONE heap pass: type stats, strings, samples, free bytes; best-effort when mid-GC
+│   │   │   ├── HeapWalker.cs          # ONE heap pass: type stats, strings, largest objects, free bytes; best-effort when mid-GC
+│   │   │   ├── RetentionAnalyzer.cs   # Who keeps the largest objects alive (root → … → object chains)
 │   │   │   ├── ThreadAnalyzer.cs      # Full stacks; ClassifyWait → WaitKind; groups live threads; reads thread pool
 │   │   │   ├── HeapAnalyzer.cs
 │   │   │   ├── GcAnalyzer.cs
@@ -109,16 +110,17 @@ Example — hide all Sitecore but surface one specific assembly:
 
 ## Report Sections
 
-The order, anchors and cross-links live in `ReportLayout` (shared by HTML, Markdown and PDF; conclusions first, raw data last). Optional sections (hotspots, duplicate strings, findings detail) are left out when empty, and the numbering closes up:
+The order, anchors and cross-links live in `ReportLayout` (shared by HTML, Markdown and PDF; conclusions first, raw data last). Optional sections (hotspots, retention paths, duplicate strings, findings detail) are left out when empty, and the numbering closes up:
 1. Executive Summary (metadata + health score), followed by the **contents** list: links in HTML/Markdown, clickable entries with page numbers in the PDF (QuestPDF `Section`/`SectionLink`)
 2. Findings — short and severity-ordered (summary + recommendation), each linking down to its detail and to the related section (`ReportLayout.RelatedSection`)
 3. Thread Analysis (grouped by stack pattern with wait-reason detection; patterns have anchors `pattern-N`)
 4. **Application Code Hotspots** — assemblies not suppressed by known-assemblies.txt, ranked by thread count with top methods, linking to the thread patterns they appear in
 5. Memory Overview
 6. Top Memory Consumers
-7. Duplicate Strings
-8. GC Health
-9. Findings Detail — Explanation, Evidence, Recommendation and **full** TechnicalDetails (complete thread stacks, no truncation), linking back to the short entry
+7. Who Keeps the Largest Objects Alive — retention paths (`RetentionReport`)
+8. Duplicate Strings
+9. GC Health
+10. Findings Detail — Explanation, Evidence, Recommendation and **full** TechnicalDetails (complete thread stacks, no truncation), linking back to the short entry
 
 Every section has a "↑ Contents" link. JSON has no sections; its shape is unchanged.
 
@@ -128,7 +130,8 @@ Every section has a "↑ Contents" link. JSON has no sections; its shape is unch
 - **Thread grouping**: Live threads (dead ones are excluded — a w3wp can carry thousands) are fingerprinted by their top 8 meaningful frames, grouped, and sorted by count. The `ThreadGroup` model carries `WaitReason`, representative stack, and sample OS thread IDs.
 - **Wait classification** (`ThreadAnalyzer.ClassifyWait`): a wait primitive (Monitor.Enter/Wait, WaitHandle, Sleep, socket/SNI I/O) must be in the top 8 meaningful frames, otherwise the thread counts as running. Then the first context frame top-down (Task.Wait/.Result, SqlClient, StackExchange.Redis, SolrNet, HttpWebRequest, Sitecore idle-worker loops) decides the `WaitKind`. `DbConnectionPool.TryGetConnection` (ADO.NET pool wait via `SafeNativeMethods.WaitForMultipleObjectsEx`) is `ConnectionPool`, checked before the SqlClient query contexts; `FindingEngine.CallerOf` groups those threads by the first frame outside the data layer's namespace (e.g. past `Sitecore.Data.*`). Monitor.Enter and a synchronous `SemaphoreSlim.Wait(` (under the Monitor.Wait that implements it) are `LockContention` unless an idle-worker context matches; the lock site is the first frame below the Monitor/SemaphoreSlim frames. `BlockingReason` is null for running threads and idle workers.
 - **Mid-GC dumps**: `CanWalkHeap == false` means the snapshot caught a GC. The walk continues best-effort, `AnalysisResult.HeapWalkComplete` is false, findings say "partial heap walk", and every report shows a banner.
-- **GC root sampling is opt-in** (`--gc-roots` / `gcRoots` setting): `LeakDetector` only enumerates roots when asked. `ClrThread.EnumerateStackRoots` costs ~0.6 s per thread (measured on 937 threads), so a 7,539-thread production dump would spend ~80 minutes there and looked hung (everything else took < 1 minute), and the lookup only matches sampled objects that are themselves roots (0 of 20 types on the March dump). `AnalysisEngine` reports each step through `IProgress<AnalysisStep>`; the CLI shows it (`StepProgress`).
+- **Retention paths** (`RetentionAnalyzer`, section "Who keeps the largest objects alive"): for the 10 largest objects ≥ 85,000 bytes (`HeapWalkResult.Largest`), the chain from a GC root down to the object, like `!gcroot`. Roots in order: static fields (named — the best explanation), strong/pinned/ref-counted/sized-ref handles, finalizer queue; one depth-first walk over reference *addresses* with a shared per-segment visited bitmap (field names are looked up only for links of a found path — `EnumerateReferencesWithFields` for every object hit the time limit on a small dump). Depth-first paths can detour (1,300 links through a trace source); `Search.Check` re-roots a path at the last object on it that a static or handle holds directly, and chains over 40 links keep the first 5 and last 25. Default time limit 60 s (measured: 3 s small dump, 28 s on the 7,539-thread dump). ClrMD's `GCRoot` was not used: its visited set (`ObjectSet`) is internal, so `FindPathFrom` per root re-walks the heap, and `EnumerateRootPaths` takes ClrMD's root order including stacks.
+- **Thread stacks are opt-in** (`--gc-roots` / `gcRoots` setting): they are searched last and without a time limit. `ClrThread.EnumerateStackRoots` costs ~0.6 s per thread (measured on 937 threads), so a 7,539-thread production dump would spend ~80 minutes there and looked hung (everything else took < 1 minute). `AnalysisEngine` reports each step through `IProgress<AnalysisStep>`; the CLI shows it (`StepProgress`).
 - **Single dump ≠ trend**: no leak findings from one dump (use `diff`); lock contention is never called a deadlock. Diff compares all types (`topN = int.MaxValue`), not the top N.
 - **Fragmentation** is free-object bytes / allocated range (what `!dumpheap -stat` lists as Free), not committed-vs-range.
 - **HTML template**: Scriban does not auto-escape — every text value must go through `| html.escape` (type names contain `<>`, heap strings contain arbitrary content).

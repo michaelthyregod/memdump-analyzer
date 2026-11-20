@@ -23,6 +23,7 @@ public static class ReportHeadings
         ["findings"] = ("Findings", "Findings"),
         ["memory_overview"] = ("Memory Overview", "Memory overview"),
         ["top_memory_consumers"] = ("Top Memory Consumers", "Top memory consumers"),
+        ["retention_paths"] = ("Who Keeps the Largest Objects Alive", "Who keeps the largest objects alive"),
         ["thread_analysis"] = ("Thread Analysis", "Thread analysis"),
         ["thread_patterns"] = ("Thread Patterns", "Thread patterns"),
         ["thread_summary"] = ("Thread Summary", "Thread summary"),

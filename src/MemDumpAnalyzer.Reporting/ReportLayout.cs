@@ -21,6 +21,7 @@ public static class ReportLayout
         "application_code_hotspots",
         "memory_overview",
         "top_memory_consumers",
+        "retention_paths",
         "duplicate_strings",
         "gc_health",
         "findings_detail",
@@ -31,6 +32,7 @@ public static class ReportLayout
         Order.Where(key => key switch
             {
                 "application_code_hotspots" => r.ApplicationHotspots.Count > 0,
+                "retention_paths" => r.Retention is { IsEmpty: false },
                 "duplicate_strings" => r.DuplicateStrings.Count > 0,
                 "findings_detail" => r.Findings.Count > 0,
                 _ => true
@@ -63,6 +65,23 @@ public static class ReportLayout
     /// <summary>The related section when the report has it.</summary>
     public static ReportSection? RelatedSection(AnalysisResult r, Finding f) =>
         RelatedSection(f.Id) is { } key ? SectionsFor(r).FirstOrDefault(s => s.Key == key) : null;
+
+    /// <summary>The text above the retention paths, the same in every report.</summary>
+    public static string RetentionIntro(RetentionReport retention) =>
+        "The largest objects on the heap and the chain of references that keeps each one alive, from a GC root down to " +
+        "the object (like WinDbg !gcroot). The owner nearest the object usually explains it: a cache, a static " +
+        $"collection, an event subscription. Searched: {retention.RootsSearched}, in {retention.Seconds:N1} s." +
+        (retention.Note is { } note ? " " + note : "");
+
+    /// <summary>Why objects can lack a path, given what was searched.</summary>
+    public static string RetentionNotFoundText(RetentionReport retention) =>
+        retention.StackRootsSearched
+            ? "No path from any root was found for these objects" + (retention.Complete
+                ? ": nothing references them any more, so they are garbage the GC has not collected yet."
+                : " before the search stopped.")
+            : "No path from static fields, handles or the finalizer queue was found for these objects. Either only a " +
+              "thread stack holds them (e.g. a request still working on them; run with --gc-roots to search the stacks, " +
+              "slow with many threads) or nothing references them any more (garbage the GC has not collected yet).";
 
     /// <summary>Indexes (0-based) of the thread patterns whose representative stack has frames from the assembly.</summary>
     public static IReadOnlyList<int> PatternsWithAssembly(AnalysisResult r, string assembly)

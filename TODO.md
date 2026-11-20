@@ -35,13 +35,11 @@ Items 1–3 (index of sections, conclusions-first order, cross-links) are done: 
 
 ## Analysis
 
-- **Retention paths for the largest types** (replacement for the old GC-root sampling, now opt-in via
-  `--gc-roots`). Show *who keeps* a big object alive — the chain object ← owner ← … ← static field,
-  handle or thread — like WinDbg `!gcroot`, which is what explains a leak or an oversized cache. The old
-  sampling only matched objects that were themselves roots (almost never) and walked every thread's
-  stack roots (~0.6 s per thread, over an hour on a 7,500-thread dump). Make it bounded: a few sample
-  objects of the top type(s) only, handle and static roots before stack roots, a time limit with a
-  clear "partial" note, and opt-in or limited by default. ClrMD has building blocks for this (GCRoot).
+- **Owners of types made of many small objects** (follow-up to the retention paths, which cover the
+  largest single objects). For a type like `System.String` with 2 million instances, one instance's
+  path says little; the question is which owners hold most of them. Needs an aggregation over the
+  reference graph (count or bytes per owning type/field, a dominator-like view), bounded like the
+  retention search.
 
 ## Follow-ups
 

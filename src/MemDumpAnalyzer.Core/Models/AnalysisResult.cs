@@ -39,5 +39,8 @@ public record AnalysisResult(
     // False when the dump was captured mid-GC (ClrMD CanWalkHeap == false): heap types, strings and
     // free-space numbers then come from a best-effort walk and are incomplete.
     bool HeapWalkComplete = true,
-    ThreadPoolStats? ThreadPool = null
+    ThreadPoolStats? ThreadPool = null,
+
+    // Who keeps the largest objects alive (null when not searched)
+    RetentionReport? Retention = null
 );

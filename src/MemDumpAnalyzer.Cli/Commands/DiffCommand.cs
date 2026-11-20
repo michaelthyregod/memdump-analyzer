@@ -26,7 +26,7 @@ public static class DiffCommand
 
         var gcRootsOpt = new Option<bool?>("--gc-roots")
         {
-            Description = "Also sample GC roots for the largest types (slow on dumps with many threads). Default: the gcRoots setting, else off."
+            Description = "Also search thread stacks for the retention paths of the largest objects (slow on dumps with many threads). Default: the gcRoots setting, else off."
         };
 
         var skinOptions = new SkinOptions();

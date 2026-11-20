@@ -32,8 +32,8 @@ public static class AnalyzeCommand
 
         var gcRootsOpt = new Option<bool?>("--gc-roots")
         {
-            Description = "Also sample GC roots for the largest types. Slow on dumps with many threads " +
-                          "(about 0.6 s per thread). Default: the gcRoots setting, else off."
+            Description = "Also search thread stacks for the retention paths of the largest objects, with no time limit. " +
+                          "Slow on dumps with many threads (about 0.6 s per thread). Default: the gcRoots setting, else off."
         };
 
         var skinOptions = new SkinOptions();

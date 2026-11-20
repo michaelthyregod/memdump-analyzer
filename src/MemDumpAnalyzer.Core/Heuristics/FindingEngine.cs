@@ -501,7 +501,7 @@ public static class FindingEngine
         if (leak?.RootPaths.Count > 0)
         {
             lines.Add("");
-            lines.Add("GC root paths (sample):");
+            lines.Add("Who keeps its largest instances alive (retention paths; full chains under Top memory consumers):");
             foreach (var rp in leak.RootPaths)
                 lines.Add($"  {rp}");
         }

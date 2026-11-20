@@ -266,6 +266,31 @@ footer{margin-top:3rem;text-align:center;font-size:.8rem;color:var(--subtle)}
   </table>
 </details>
 
+<!-- Who keeps the largest objects alive -->
+{{ if r.retention && (r.retention.paths.size > 0 || r.retention.not_found.size > 0) }}
+<div class="section-anchor" id="retention-paths"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
+<h2>{{ headings.retention_paths | html.escape }}</h2>
+<p style="color:var(--muted);font-size:.9rem">{{ retention_intro | html.escape }}</p>
+{{ for p in r.retention.paths }}
+<details style="margin-top:.5rem">
+  <summary><strong style="font-family:var(--font-mono);font-size:.85rem">{{ p.type_name | html.escape }}</strong> — {{ format_bytes p.size_bytes }} — held by <code>{{ p.root | html.escape }}</code></summary>
+  <div class="tech-details" style="margin-top:4px">{{ for line in (retention_lines p) }}{{ line | html.escape }}
+{{ end }}</div>
+</details>
+{{ end }}
+{{ if r.retention.not_found.size > 0 }}
+<p style="font-size:.85rem;margin-top:1rem">{{ retention_not_found | html.escape }}</p>
+<table>
+  <thead><tr><th>Type</th><th>Size</th><th>Address</th></tr></thead>
+  <tbody>
+  {{ for t in r.retention.not_found }}
+    <tr><td style="font-family:monospace;font-size:.8rem">{{ t.type_name | html.escape }}</td><td style="text-align:right">{{ format_bytes t.size_bytes }}</td><td style="font-family:monospace;font-size:.8rem">{{ hex t.address }}</td></tr>
+  {{ end }}
+  </tbody>
+</table>
+{{ end }}
+{{ end }}
+
 <!-- Duplicate Strings -->
 {{ if r.duplicate_strings.size > 0 }}
 <div class="section-anchor" id="duplicate-strings"><a class="toc-link" href="#contents">↑ {{ headings.contents | html.escape }}</a></div>
