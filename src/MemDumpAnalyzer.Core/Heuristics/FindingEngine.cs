@@ -25,6 +25,10 @@ public static class FindingEngine
     private const int LockContentionWarningThreshold = 10;
     private const int LockContentionCriticalThreshold = 50;
 
+    // Own thresholds, like lock contention: a few waiters can be a moment's peak, dozens mean the pool is dry
+    private const int ConnectionPoolWarningThreshold = 10;
+    private const int ConnectionPoolCriticalThreshold = 50;
+
     private const string SecondDumpAdvice =
         "A single dump is one moment in time: capture 2–3 dumps about a minute apart " +
         "(e.g. procdump64 -ma -n 3 -s 60 <pid>) and compare them.";
@@ -181,6 +185,41 @@ public static class FindingEngine
             ));
         }
 
+        var poolWaiters = threads.Where(t => t.IsAlive && t.WaitKind == WaitKind.ConnectionPool).ToList();
+        if (poolWaiters.Count >= ConnectionPoolWarningThreshold)
+        {
+            var inSql = threads.Where(t => t.IsAlive && t.WaitKind == WaitKind.Dependency &&
+                                           t.BlockingReason?.Contains("SQL Server", StringComparison.Ordinal) == true).ToList();
+            var waitingCallers = ByCaller(poolWaiters);
+            var minThreadsNote = threadPool is { MinThreads: > 1000 } tp
+                ? $"; thread pool minimum is {tp.MinThreads:N0}, so every waiting request got its own thread" : "";
+
+            findings.Add(new Finding(
+                "SqlConnectionPoolExhausted",
+                poolWaiters.Count >= ConnectionPoolCriticalThreshold ? Severity.Critical : Severity.Warning,
+                $"{poolWaiters.Count:N0} threads wait for a SQL connection from the pool — {inSql.Count:N0} are running SQL",
+                "ADO.NET keeps a pool of open connections per connection string (Max Pool Size, default 100). When " +
+                "every pooled connection is in use, SqlConnection.Open waits for one to come back — up to the " +
+                "connect timeout (default 15 s), then it fails with \"Timeout expired … obtaining a connection from " +
+                "the pool\". Each waiting request holds a thread, so the thread pool grows and requests queue. " +
+                "Either the connections in use are busy too long (slow or blocked SQL), or they aren't returned " +
+                "(a connection or data reader that isn't disposed). The number of pooled connections is the most " +
+                "SQL commands that can run at once (makingitfaster.tips).",
+                Evidence: $"{poolWaiters.Count:N0} threads in DbConnectionPool.TryGetConnection, {inSql.Count:N0} threads in SQL " +
+                          $"reads{minThreadsNote}. Waiting, by code path: " +
+                          string.Join("; ", waitingCallers.Take(3).Select(g => $"{g.Count:N0} × {g.Caller}")),
+                Recommendation:
+                    "1. Check SQL Server now for slow or blocked queries (sys.dm_exec_requests, blocking chains, sp_who2). " +
+                    "2. Make sure every SqlConnection, SqlCommand and SqlDataReader is disposed (using): a connection that " +
+                    "isn't returned stays out of the pool until the GC finalizes it. " +
+                    "3. Look at the code holding connections (callers below) for slow work done while a connection is open. " +
+                    "4. Raise Max Pool Size only after 1–3: more connections move the queue to SQL Server. " +
+                    "5. A very high minWorkerThreads lets thousands of requests pile up instead of queueing; keep it near " +
+                    "what the dependencies can serve.",
+                TechnicalDetails: BuildConnectionPoolDetails(poolWaiters, inSql)
+            ));
+        }
+
         // ── Heap findings ────────────────────────────────────────────────────
 
         var topType = heapTypes.FirstOrDefault();
@@ -297,6 +336,7 @@ public static class FindingEngine
         WaitKind.Signal => "waiting on an event/semaphore",
         WaitKind.Sleep => "sleeping",
         WaitKind.IdleWorker => "idle workers",
+        WaitKind.ConnectionPool => "waiting for a SQL connection from the pool",
         _ => kind.ToString()
     };
 
@@ -372,6 +412,71 @@ public static class FindingEngine
     /// <summary>Collapses runs of whitespace (including line breaks) so a value fits on one line.</summary>
     private static string OneLine(string value) =>
         string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>
+    /// Which code path asked for the connection. The first frame outside the framework is usually a data
+    /// layer that every query goes through (e.g. Sitecore.Data.*), so it can't tell paths apart; the first
+    /// frame outside that layer's namespace (its first two segments) can. Shown as "path (via entry)".
+    /// </summary>
+    public static string CallerOf(IReadOnlyList<string> frames)
+    {
+        var outside = frames
+            .Where(f => !f.StartsWith('[') && !f.StartsWith("System.", StringComparison.Ordinal) &&
+                        !f.StartsWith("Microsoft.Data.", StringComparison.Ordinal) &&
+                        !f.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.Ordinal) &&
+                        !f.StartsWith("<Module>", StringComparison.Ordinal) &&
+                        !f.StartsWith("DomainNeutralILStubClass", StringComparison.Ordinal) &&
+                        !f.StartsWith("SNINativeMethodWrapper", StringComparison.Ordinal))
+            .Select(MethodName)
+            .ToList();
+        if (outside.Count == 0)
+            return "(no caller outside the framework)";
+
+        var entry = outside[0];
+        var parts = entry.Split('.');
+        var layer = parts.Length > 2 ? parts[0] + "." + parts[1] + "." : null;
+        var path = layer == null ? null : outside.FirstOrDefault(f => !f.StartsWith(layer, StringComparison.Ordinal));
+        return path == null ? entry : $"{path} (via {entry})";
+    }
+
+    /// <summary>"Ns.Type.Method(args)  [Asm]" → "Ns.Type.Method"; obfuscated (invisible) names fall back to the type.</summary>
+    private static string MethodName(string frame)
+    {
+        var end = frame.IndexOf('(');
+        var name = (end > 0 ? frame[..end] : StripAssembly(frame)).Trim();
+        // Obfuscators use invisible format characters for names (e.g. Sitecore.Nexus)
+        name = new string(name.Where(c => char.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.Format).ToArray());
+        return name.TrimEnd('.');
+    }
+
+    private static List<(string Caller, int Count)> ByCaller(IEnumerable<ThreadInfo> threads) =>
+        threads.GroupBy(t => CallerOf(t.StackFrames))
+            .Select(g => (Caller: g.Key, Count: g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ToList();
+
+    private static IReadOnlyList<string> BuildConnectionPoolDetails(IReadOnlyList<ThreadInfo> waiters, IReadOnlyList<ThreadInfo> inSql)
+    {
+        var lines = new List<string>
+        {
+            $"WAITING FOR A CONNECTION  ({waiters.Count:N0} threads), by code path",
+            new string('─', 60)
+        };
+        foreach (var (caller, count) in ByCaller(waiters).Take(15))
+            lines.Add($"  {count,7:N0}  {caller}");
+
+        lines.Add("");
+        lines.Add($"RUNNING SQL  ({inSql.Count:N0} threads holding a connection), by code path");
+        lines.Add(new string('─', 60));
+        foreach (var (caller, count) in ByCaller(inSql).Take(15))
+            lines.Add($"  {count,7:N0}  {caller}");
+
+        lines.Add("");
+        lines.Add("Stack of a waiting thread (representative):");
+        foreach (var frame in waiters[0].StackFrames)
+            lines.Add($"    {frame}");
+        return lines;
+    }
 
     private static string StripAssembly(string frame)
     {

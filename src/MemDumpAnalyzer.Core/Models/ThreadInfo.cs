@@ -18,7 +18,9 @@ public enum WaitKind
     /// <summary>Thread.Sleep.</summary>
     Sleep,
     /// <summary>Worker thread idling until work arrives (e.g. Sitecore ManagedThreadPool) — noise, not a problem.</summary>
-    IdleWorker
+    IdleWorker,
+    /// <summary>Waiting for a free connection from the ADO.NET connection pool (SqlConnection.Open).</summary>
+    ConnectionPool
 }
 
 public record ThreadInfo(

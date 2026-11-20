@@ -129,6 +129,7 @@ public static class ThreadAnalyzer
         ("System.Threading.ManualResetEventSlim.Wait", Primitive.Signal),
         ("System.Threading.SemaphoreSlim.Wait(", Primitive.SemaphoreGate),
         ("System.Threading.Thread.Join", Primitive.Signal),
+        ("System.Data.Common.SafeNativeMethods.WaitForMultipleObjectsEx", Primitive.Signal),   // ADO.NET pool wait (.NET Framework)
         ("System.Threading.Thread.Sleep", Primitive.Sleep),
         ("System.Threading.Thread.SleepInternal", Primitive.Sleep),
         ("SNINativeMethodWrapper.", Primitive.Io),
@@ -156,6 +157,8 @@ public static class ThreadAnalyzer
         ("System.Runtime.CompilerServices.TaskAwaiter", WaitKind.SyncOverAsync, "async Task (.GetAwaiter().GetResult())"),
 
         // External dependencies
+        // Before the SqlClient entries: Open() waiting for a pooled connection is not a query
+        ("ProviderBase.DbConnectionPool.", WaitKind.ConnectionPool, "SQL connection pool (waiting for a free connection)"),
         ("System.Data.SqlClient.", WaitKind.Dependency, "SQL Server (ADO.NET)"),
         ("Microsoft.Data.SqlClient.", WaitKind.Dependency, "SQL Server (ADO.NET)"),
         ("StackExchange.Redis.", WaitKind.Dependency, "Redis (StackExchange.Redis)"),
