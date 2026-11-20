@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/src/">
     <Project Path="src/MemDumpAnalyzer.Cli/MemDumpAnalyzer.Cli.csproj" />
     <Project Path="src/MemDumpAnalyzer.Core/MemDumpAnalyzer.Core.csproj" />

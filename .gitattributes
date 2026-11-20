@@ -1,0 +1,12 @@
+# Line-ending policy is repo-controlled so every clone behaves identically,
+# regardless of each contributor's core.autocrlf setting:
+# - text files are stored normalized (LF) in the repository
+# - working trees check out LF on every platform (no conversions, no
+#   "LF will be replaced by CRLF" warnings) — all modern .NET tooling
+#   handles LF on Windows
+# Binary files are auto-detected and left untouched.
+* text=auto eol=lf
+
+# cmd.exe batch files genuinely require CRLF (labels/goto misbehave on LF).
+*.bat text eol=crlf
+*.cmd text eol=crlf

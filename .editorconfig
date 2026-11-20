@@ -1,0 +1,22 @@
+# Editor-side enforcement of the repo's whitespace policy (see also .gitattributes):
+# LF everywhere, exactly one final newline, no trailing whitespace.
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown uses trailing double-spaces for hard line breaks.
+[*.md]
+trim_trailing_whitespace = false
+
+# cmd.exe batch files genuinely require CRLF (labels/goto misbehave on LF).
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# MSBuild project files carry a UTF-8 BOM, matching what Visual Studio writes when it rewrites
+# them (NuGet updates, project edits), so those rewrites produce no diff. Scoped to project files
+# only: a global charset would add or strip BOMs on files that legitimately differ.
+[*.{csproj,props,targets,slnx}]
+charset = utf-8-bom
