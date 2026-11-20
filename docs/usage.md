@@ -131,8 +131,10 @@ settings file are relative to that file's folder.
 ## 6. Choose which assemblies count as "your code"
 
 `known-assemblies.txt` hides framework and platform assemblies, so the *Application code hotspots*
-section shows the code you can change. The shipped file hides .NET, ASP.NET, Azure, Entity Framework
-and Sitecore (but keeps `Sitecore.SessionProvider` visible).
+section shows the code you can change. The shipped file hides .NET, ASP.NET, Azure/Application
+Insights, Entity Framework, the Redis client and the Sitecore core, but keeps the Sitecore features
+that are configured per site and often take part in performance problems visible: xDB tracking and
+xConnect, marketing definitions, content search, content testing, forms, EXM and session providers.
 
 ```text
 # comment
