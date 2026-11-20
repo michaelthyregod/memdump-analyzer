@@ -31,7 +31,13 @@ Items 1–3 (index of sections, conclusions-first order, cross-links) are done: 
    - different filters per audience (developer, operations, customer/management) — chosen with an
      option, a setting or the skin;
    - whether hidden assemblies should still appear, collapsed under their group;
-   - how findings use it (e.g. lock contention inside Sitecore vs. inside custom code).
+   - how findings use it (e.g. lock contention inside Sitecore vs. inside custom code);
+   - retention paths too: mark each path by who owns the root and the objects nearest the target, so
+     fixed platform costs read as such. Seen on both hang dumps: `Microsoft.Web.Hosting.Tracing.AntaresEventProvider`
+     (Azure App Service's own tracing EventSource, "Antares" = App Service) holds a 4 MB
+     `EventMetadata[]` and a 1.1 MB manifest — harmless and not changeable, but listed among the largest
+     objects without saying so. A path could also explain itself ("App Service platform tracing — fixed
+     size, nothing to do"), from a small list of known roots kept with the filter groups.
 
 ## Analysis
 
