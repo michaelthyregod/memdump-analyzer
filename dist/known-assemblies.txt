@@ -31,6 +31,7 @@
 
 # ── Azure / Application Insights ─────────────────────────────────────────────
 -Microsoft.ApplicationInsights
+-Microsoft.AI
 -Microsoft.Azure
 -Microsoft.Extensions
 -Microsoft.Identity
@@ -44,8 +45,24 @@
 -Blueprint
 
 # ── Sitecore platform ─────────────────────────────────────────────────────────
+# The core (Kernel, Nexus, Mvc, XA, Buckets, …) is hidden: it is on almost every stack and
+# explains little. Features that are configured per site and often take part in performance
+# problems stay visible, so a hotspot shows which feature a stuck request was in.
 -Sitecore
-# To surface a specific Sitecore assembly for investigation, add a + rule below, e.g.:
+# xDB tracking and the marketing definitions it loads per request (goals, profiles, campaigns)
++Sitecore.Analytics
++Sitecore.Mvc.Analytics
++Sitecore.XConnect
++Sitecore.Xdb
++Sitecore.Marketing
+# Search indexing and queries (Solr/Lucene)
++Sitecore.ContentSearch
+# Content testing, Experience Forms, EXM
++Sitecore.ContentTesting
++Sitecore.ExperienceForms
++Sitecore.EmailCampaign
++Sitecore.ExM
+# Session state providers (Redis/SQL)
 +Sitecore.SessionProvider
 
 # ── Other common frameworks — add with - to suppress ─────────────────────────
@@ -56,4 +73,4 @@
 # -NLog
 # -WebActivator
 -StackExchange.Redis
-# -Pipelines.Sockets.Unofficial
+-Pipelines.Sockets.Unofficial

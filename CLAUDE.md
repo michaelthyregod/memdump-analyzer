@@ -98,6 +98,7 @@ dotnet run --project src/MemDumpAnalyzer.Cli -- diff mem-dumps/baseline.dmp mem-
 ## known-assemblies.txt Filter Format
 
 Controls which assemblies appear in the "Application Code Hotspots" report section.
+`dist/known-assemblies.txt` is a copy of the root file: change both in the same commit and keep them identical (`scripts/build-dist.ps1` ships the root one).
 - `-Prefix` (or bare `Prefix`) — exclude: treat as known infrastructure, hide from hotspots
 - `+Prefix` — include: force visible even if a broader exclude would hide it (takes priority)
 - `#` or `//` lines are comments; blank lines ignored
