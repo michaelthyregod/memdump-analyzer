@@ -1,4 +1,32 @@
-﻿<Solution>
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="CLAUDE.md" />
+    <File Path="CONTRIBUTING.md" />
+    <File Path="global.json" />
+    <File Path="known-assemblies.txt" />
+    <File Path="LICENSE" />
+    <File Path="Readme.md" />
+    <File Path="THIRD-PARTY-NOTICES.md" />
+    <File Path="TODO.md" />
+  </Folder>
+  <Folder Name="/Solution Items/.github/" />
+  <Folder Name="/Solution Items/.github/workflows/">
+    <File Path=".github/workflows/dotnet.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/dist/">
+    <File Path="dist/known-assemblies.txt" />
+    <File Path="dist/README-FIRST.txt" />
+  </Folder>
+  <Folder Name="/Solution Items/docs/">
+    <File Path="docs/skins.md" />
+    <File Path="docs/usage.md" />
+  </Folder>
+  <Folder Name="/Solution Items/scripts/">
+    <File Path="scripts/build-dist.ps1" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/MemDumpAnalyzer.Cli/MemDumpAnalyzer.Cli.csproj" />
     <Project Path="src/MemDumpAnalyzer.Core/MemDumpAnalyzer.Core.csproj" />
