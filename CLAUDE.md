@@ -162,7 +162,7 @@ All projects build with `IsAotCompatible` + trim/AOT analyzers enabled — keep 
 | `System.CommandLine` 3.0.0 | CLI argument parsing |
 | `Scriban` 7.x | HTML report templating |
 | `QuestPDF` 2026.x | PDF generation (Community license). Since 2026.9 system fonts are off and a missing font throws; `PdfReporter` turns `UseSystemFonts` on and `ThrowOnMissingFontFamilies` off to keep Arial/Courier New with a fallback |
-| `Spectre.Console` 0.57.3-alpha | Rich terminal output |
+| `Spectre.Console` 0.57.2 | Rich terminal output |
 | `xunit.v3` 4.x + `xunit.runner.visualstudio` 4.x | Tests, run via Microsoft.Testing.Platform (see `global.json`) |
 
 ## ClrMD v3.1 API Notes

@@ -68,7 +68,7 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 | Microsoft.Diagnostics.Runtime (ClrMD) | 4.2.751201 | © Microsoft Corporation | <https://github.com/microsoft/clrmd> |
 | Microsoft.Diagnostics.NETCore.Client | 0.2.661903 | © Microsoft Corporation | <https://github.com/dotnet/diagnostics> |
 | System.CommandLine | 3.0.0 | © Microsoft Corporation | <https://github.com/dotnet/command-line-api> |
-| Spectre.Console, Spectre.Console.Ansi | 0.57.3-alpha.0.29 | © Patrik Svensson, Phil Scott, Nils Andresen, Cédric Luthi | <https://github.com/spectreconsole/spectre.console> |
+| Spectre.Console, Spectre.Console.Ansi | 0.57.2 | © Patrik Svensson, Phil Scott, Nils Andresen, Cédric Luthi | <https://github.com/spectreconsole/spectre.console> |
 | Azure.Core, Azure.Identity, System.ClientModel (via ClrMD) | 1.53.0, 1.21.0, 1.10.0 | © Microsoft Corporation | <https://github.com/Azure/azure-sdk-for-net> |
 | Microsoft.Identity.Client, Microsoft.Identity.Client.Extensions.Msal, Microsoft.IdentityModel.Abstractions (via ClrMD) | 4.83.1, 4.83.1, 8.14.0 | © Microsoft Corporation | <https://github.com/AzureAD> |
 | Microsoft.Security.AntiSSRF (via ClrMD) | 1.0.0 | © Microsoft Corporation | <https://github.com/microsoft/AntiSSRF> |
