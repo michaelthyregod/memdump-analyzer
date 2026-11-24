@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 namespace MemDumpAnalyzer.Cli;
 
 /// <summary>
-/// Single-exe builds (<c>-p:SingleExe=true</c>) embed QuestPDF's native libraries (qpdf, QuestPdfSkia)
+/// Single-exe builds (<c>-p:SingleExe=true</c>) embed QuestPDF's native libraries (questpdf_qpdf, questpdf_skia)
 /// as resources, because a Native AOT exe can't link them in. On first use they are extracted once to
 /// <c>%LOCALAPPDATA%\memdump-analyzer\native\&lt;content hash&gt;</c>, loaded, and QuestPDF's P/Invokes
 /// are pointed at them. In a normal build there are no such resources and nothing happens.
@@ -40,7 +40,7 @@ internal static class NativeDependencies
             Loaded[Path.GetFileNameWithoutExtension(name)] = NativeLibrary.Load(path);
         }
 
-        // QuestPDF's [DllImport("qpdf")] / [DllImport("QuestPdfSkia")] resolve to the extracted copies
+        // QuestPDF's [DllImport("questpdf_qpdf")] / [DllImport("questpdf_skia")] resolve to the extracted copies
         NativeLibrary.SetDllImportResolver(typeof(QuestPDF.Settings).Assembly, (libraryName, _, _) =>
             Loaded.TryGetValue(Path.GetFileNameWithoutExtension(libraryName), out var handle) ? handle : IntPtr.Zero);
     }
