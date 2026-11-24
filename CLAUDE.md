@@ -152,7 +152,7 @@ All projects build with `IsAotCompatible` + trim/AOT analyzers enabled — keep 
 - **JSON**: never use reflection-based `JsonSerializer.Serialize(obj, options)`. All report root types are registered in `ReportJsonContext` (source-generated, camelCase, string enums); add new root types there with `[JsonSerializable]`.
 - **Scriban**: reads the model graph via reflection at render time, which the trimmer can't see. `MemDumpAnalyzer.Reporting/ILLink.Descriptors.xml` (embedded resource) preserves all of `MemDumpAnalyzer.Core` — new model types are covered automatically. Pass the model via `scriptObj["r"] = result` (no reflection), not `Import(anonymousObject)`. Delegate `Import("name", Func<...>)` calls are fine; their IL2026 is suppressed on `HtmlReporter.Render`.
 - **Spectre.Console**: `AnsiConsole.WriteException` is not AOT compatible — print `Markup.Escape(ex.ToString())` instead.
-- Native AOT publish is free of trim/AOT warnings (verified 2026-11-24 on .NET 11 with the package versions below). Only IL3058 notes remain for referenced assemblies not annotated as AOT-compatible (ClrMD and its dependencies, Scriban).
+- Native AOT publish is free of trim/AOT warnings (verified 2026-11-24 on .NET 11 with the package versions below). `VerifyReferenceAotCompatibility` is off: it only listed referenced assemblies not marked AOT-compatible (IL3058 for ClrMD and its dependencies, Scriban), which was noise. Real trim/AOT problems still show as IL2xxx/IL3050/IL3053. The tests run under JIT, so after a dependency change run the AOT exe once with every format (Scriban reads the model by reflection).
 
 ## Key Dependencies
 
