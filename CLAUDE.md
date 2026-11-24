@@ -78,7 +78,7 @@ dotnet build
 dotnet test
 ```
 
-- `global.json` pins the SDK (10.0.403, rolls forward to newer 10.0 feature bands, no previews) and selects **Microsoft.Testing.Platform** as the `dotnet test` runner — required by xunit v3 4.x on the .NET 10 SDK. CI reads the SDK from the same file.
+- `global.json` pins the SDK (11.0.100, rolls forward to newer 11.0 feature bands, no previews) and selects **Microsoft.Testing.Platform** as the `dotnet test` runner — required by xunit v3 4.x on the .NET 10 SDK and later. CI reads the SDK from the same file.
 - Native AOT publish (`dotnet publish src/MemDumpAnalyzer.Cli -c Release -r win-x64`) needs `vswhere.exe` on PATH; it lives in `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer`, which Git Bash/PowerShell sessions may not include.
 - **Single exe / distribution zip:** `scripts/build-dist.ps1 [-SkinsDir <folder>]` publishes with `-p:SingleExe=true`: the `EmbedQuestPdfNativeLibraries` target (CLI csproj, runs before `AssignTargetPaths` — later is too late for resources) embeds QuestPDF's `qpdf`/`QuestPdfSkia` DLLs, and `NativeDependencies.Prepare()` extracts them to `%LOCALAPPDATA%\memdump-analyzer\native\<hash>` and points QuestPDF's P/Invokes at them. Zip layout comes from `dist/README-FIRST.txt` and the script; the zip is git-ignored. Run examples live in `docs/usage.md` — keep it and `dist/README-FIRST.txt` in step with the CLI options.
 
@@ -152,7 +152,7 @@ All projects build with `IsAotCompatible` + trim/AOT analyzers enabled — keep 
 - **JSON**: never use reflection-based `JsonSerializer.Serialize(obj, options)`. All report root types are registered in `ReportJsonContext` (source-generated, camelCase, string enums); add new root types there with `[JsonSerializable]`.
 - **Scriban**: reads the model graph via reflection at render time, which the trimmer can't see. `MemDumpAnalyzer.Reporting/ILLink.Descriptors.xml` (embedded resource) preserves all of `MemDumpAnalyzer.Core` — new model types are covered automatically. Pass the model via `scriptObj["r"] = result` (no reflection), not `Import(anonymousObject)`. Delegate `Import("name", Func<...>)` calls are fine; their IL2026 is suppressed on `HtmlReporter.Render`.
 - **Spectre.Console**: `AnsiConsole.WriteException` is not AOT compatible — print `Markup.Escape(ex.ToString())` instead.
-- Native AOT publish is free of trim/AOT warnings (verified 2026-11-02 with the package versions below). Only IL3058 notes remain for referenced assemblies not annotated as AOT-compatible (ClrMD and its dependencies, Scriban).
+- Native AOT publish is free of trim/AOT warnings (verified 2026-11-24 on .NET 11 with the package versions below). Only IL3058 notes remain for referenced assemblies not annotated as AOT-compatible (ClrMD and its dependencies, Scriban).
 
 ## Key Dependencies
 

@@ -29,7 +29,7 @@ See [docs/usage.md](docs/usage.md) for every command, option and setting with ex
 The zip holds one self-contained Native AOT `MemDumpAnalyzer.Cli.exe` (no .NET needed; QuestPDF's
 native libraries are embedded and unpacked to `%LOCALAPPDATA%\memdump-analyzer\native` on first use),
 plus `known-assemblies.txt`, `README-FIRST.txt` with run examples, the docs, and empty `mem-dumps\`
-and `report\` folders. Building needs the .NET 10 SDK and Visual Studio's C++ build tools.
+and `report\` folders. Building needs the .NET 11 SDK and Visual Studio's C++ build tools.
 
 ## License
 
